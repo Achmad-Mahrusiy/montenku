@@ -351,4 +351,37 @@ Status: Usulan
 - Fail open dipilih karena kalau Upstash bermasalah, lebih baik login tetap jalan beberapa menit tanpa batas daripada semua pengguna terkunci. Untuk produk ini risikonya kecil; bisa diganti fail closed nanti.
 - Menutup endpoint lebih sederhana dan lebih kuat daripada memasang rate limit kedua di Better Auth.
 
+**Catatan angka menit.** Jendela Upstash disejajarkan dengan jam (ember 15 menit sejak 00.00), bukan dihitung dari percobaan pertama, jadi pesan bisa berbunyi "Coba lagi dalam 8 menit" untuk batas 15 menit. Diuji dengan Upstash sungguhan (22 Nov 2026): setelah waktu itu lewat, percobaan berikutnya memang diizinkan.
+
 **Trade-off.** Penyimpanan rate limit bawaan Better Auth (memori) tetap aktif untuk endpoint lain seperti `get-session`; di serverless memorinya tidak dibagi antar-instance, jadi lemah, tapi endpoint itu tidak menerima kata sandi.
+
+---
+
+## D-021 Item konten: tanggal wajib, catatan banyak per item, kepemilikan dicek database
+Status: Disetujui (22 Nov 2026, jawaban awal Fase 2)
+
+**Konteks.** Fase 2 menambah item konten, tenggat per tahap, dan catatan. Tiga hal tidak dijawab brief maupun Fase 0, jadi ditanyakan.
+
+**Pilihan.**
+- **Tanggal dan jam target wajib** (`content_items.target_at NOT NULL`). Menyimpang dari ERD Fase 0 yang membolehkan kosong. Setiap item selalu punya tempat di kalender.
+- **Catatan bisa banyak per item.** Tabel `notes` hanya punya `item_id` (wajib), tanpa `account_id` seperti di ERD. Akun sebuah catatan selalu diambil dari itemnya, jadi saat item dipindah ke akun lain, catatannya tidak bisa tertinggal di akun lama.
+- **Tenggat per tahap** di tabel `item_stage_deadlines` (satu baris per tahap yang diisi), hanya untuk naskah, produksi, editing, dan siap. Tahap "terposting" memakai `target_at`. Tabel ini diberi kolom `user_id` (tidak ada di ERD) supaya dashboard Fase 5 bisa langsung mencari tenggat milik pengguna.
+- `content_items`, `item_stage_deadlines`, dan `notes` memakai foreign key komposit ke pasangan (id, user_id) induknya. Database menolak item di akun orang lain, atau tenggat/catatan di item orang lain, bahkan kalau DAL salah.
+- Kolom `schedule_id` dan `occurrence_key` dari ERD belum dibuat; ditambahkan di Fase 3 bersama tabel `schedules`.
+
+**Alasan.** Pilihan pengguna untuk tiga pertanyaan; sisanya mengikuti D-008.
+
+---
+
+## D-022 Kalender menampilkan jam dalam zona waktu tiap akun
+Status: Disetujui (22 Nov 2026, jawaban awal Fase 2)
+
+**Konteks.** Kalender "Semua akun" bisa berisi akun dengan zona waktu berbeda.
+
+**Opsi.** (a) Setiap item tampil di jam dinding zona akunnya. (b) Semua item dikonversi ke satu zona milik pengguna.
+
+**Pilihan.** (a). Jam dan tanggal target diisi dan ditampilkan dalam zona akun, sama seperti email pengingat (brief Fase 4). Item di akun yang zonanya bukan WIB diberi label zona (mis. JST).
+
+**Alasan.** Kreator menjadwalkan posting untuk jam penontonnya; "19:00 di akun Tokyo" lebih bermakna daripada "17:00 WIB". Tidak butuh pengaturan zona pengguna sebelum Fase 5. Kalau semua akun WIB, tampilannya sama persis dengan Figma.
+
+**Konsekuensi.** Dua item di akun berbeda zona yang tampil di jam yang sama di kalender belum tentu terjadi di momen yang sama. Deteksi bentrok (Fase 5) memang per akun, jadi tidak terpengaruh.

@@ -12,7 +12,16 @@ describe("RLS deny-all di schema public", () => {
       sql`select tablename as name from pg_tables where schemaname = 'public'`,
     );
     expect(rows.map((r) => r.name)).toEqual(
-      expect.arrayContaining(["user", "session", "account", "verification", "content_accounts"]),
+      expect.arrayContaining([
+        "user",
+        "session",
+        "account",
+        "verification",
+        "content_accounts",
+        "content_items",
+        "item_stage_deadlines",
+        "notes",
+      ]),
     );
   });
 

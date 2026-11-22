@@ -8,6 +8,13 @@
       "when": 1795351873594,
       "tag": "0000_chief_vance_astro",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1795358973598,
+      "tag": "0001_fearless_kate_bishop",
+      "breakpoints": true
     }
   ]
 }
