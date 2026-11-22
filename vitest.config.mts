@@ -11,7 +11,7 @@ export default defineConfig({
   test: {
     environment: "node",
     globalSetup: ["./tests/helpers/global-setup.ts"],
-    // Tests use an in-memory PGlite database started by global-setup, never your Supabase database.
+    // Tests use a throwaway local Postgres started by global-setup, never your Supabase database.
     env: { DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:55432/postgres" },
     // Test files share one database, so run them one at a time.
     fileParallelism: false,

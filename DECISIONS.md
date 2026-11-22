@@ -231,30 +231,33 @@ Asumsi lain (koreksi jika salah):
 
 ---
 
-## D-013 Database dev: Supabase cloud; database test: PGlite
-Status: Disetujui (22 Nov 2026), menggantikan pilihan awal Docker + Supabase CLI
+## D-013 Database dev: Supabase cloud; database test: Postgres asli lokal (embedded-postgres)
+Status: Disetujui (22 Nov 2026). Menggantikan Docker + Supabase CLI, lalu PGlite.
 
-**Konteks.** Test isolasi dan pemeriksaan RLS butuh Postgres sungguhan. Supabase CLI lokal sempat dicoba, tapi butuh Docker Desktop: sekitar 7–8 GB disk dan beberapa GB RAM. Terlalu berat untuk laptop yang dipakai.
+**Konteks.** Test isolasi dan pemeriksaan RLS butuh Postgres sungguhan. Supabase CLI lokal butuh Docker Desktop (sekitar 7 GB disk, beberapa GB RAM), terlalu berat untuk laptop yang dipakai.
 
 **Opsi.**
 1. Docker + Supabase CLI.
-2. Supabase cloud untuk dev, PGlite untuk test.
-3. Proyek Supabase kedua khusus test.
-4. Ganti ke MySQL.
+2. Supabase cloud untuk dev, PGlite (Postgres versi WASM) untuk test.
+3. Supabase cloud untuk dev, `embedded-postgres` (binary Postgres asli, tanpa Docker) untuk test.
+4. Proyek Supabase kedua khusus test.
+5. Ganti ke MySQL.
 
-**Pilihan.** Opsi 2.
+**Pilihan.** Opsi 3 (dipilih 22 Nov 2026 di Langkah 4).
 - Dev memakai proyek Supabase Free di web: transaction pooler untuk app, session pooler untuk migrasi.
-- Test memakai PGlite (Postgres yang dikompilasi ke WASM, sekitar 28 MB di `node_modules`). PGlite dijalankan otomatis oleh `tests/helpers/global-setup.ts` lewat `@electric-sql/pglite-socket`, sehingga kode app tetap memakai `postgres-js` tanpa perubahan.
-- CI nanti memakai cara yang sama.
+- Test memakai `embedded-postgres`: Postgres 18 asli yang dijalankan `tests/helpers/global-setup.ts` sebagai proses biasa di port 55432, datanya di folder sementara di luar OneDrive dan dihapus setelah test. Sekitar 110 MB di `node_modules` (Windows), hanya hidup selama `npm test`.
+- CI nanti memakai cara yang sama (paket Linux sekitar 60 MB).
 
 **Alasan.**
-- Tanpa install berat. Database test selalu kosong di setiap run dan tidak pernah menyentuh data dev.
-- MySQL ditolak karena desain Fase 0 bergantung pada fitur Postgres (`timestamptz`, RLS, `pg_policies`) dan hosting gratis untuk Vercel.
+- Opsi 2 sempat dipakai, tapi gagal di Langkah 4: insert pertama dengan parameter enum memicu jalur "Describe ulang" milik postgres-js, dan PGlite lewat socket kehilangan statement di tengah jalan ("unnamed prepared statement does not exist"). Query yang sama berhasil di Supabase. Test yang gagal karena alat test, bukan karena kode, merusak kepercayaan pada test.
+- Opsi 3 memakai protokol dan driver yang sama persis dengan produksi, tetap tanpa Docker.
+- Opsi 4 tidak dipilih karena jaringan dev sering memutus koneksi baru ke Supabase dan test akan mengotori data cloud.
+- MySQL ditolak karena desain Fase 0 bergantung pada fitur Postgres (`timestamptz`, RLS, `pg_policies`).
 
 **Trade-off.**
-- PGlite tidak punya role Supabase (`anon`/`authenticated`). Karena itu test RLS memeriksa katalog (`pg_tables.rowsecurity`, `pg_policies`), bukan mencoba query sebagai `anon`.
-- Satu proses PGlite melayani query satu per satu, sehingga test berjalan berurutan.
-
+- Paket `embedded-postgres` berlabel beta (versi `18.7.0-beta.19`). Kalau suatu saat rusak, opsi cadangannya PGlite dengan driver Drizzle khusus PGlite.
+- Postgres lokal tidak punya role Supabase (`anon`/`authenticated`). Karena itu test RLS memeriksa katalog (`pg_tables.rowsecurity`, `pg_policies`), bukan mencoba query sebagai `anon`.
+- File test berjalan berurutan karena berbagi satu database.
 ---
 
 ## D-014 Node 24.x dikunci di `engines`
@@ -311,3 +314,16 @@ Status: Usulan
 **Pilihan.** `proxy.ts` hanya mengecek ada atau tidaknya cookie sesi lalu mengarahkan ke `/masuk`. Setiap halaman yang dilindungi memanggil `requireUser()` yang benar-benar memeriksa sesi ke database. Halaman `/masuk` dan `/daftar` mengalihkan pengguna yang sudah masuk ke `/` memakai sesi asli, bukan cookie.
 
 **Alasan.** Cookie bisa dipalsukan, jadi proxy hanya mempercepat redirect, bukan pengaman. Pengecekan "sudah masuk" di proxy berbasis cookie bisa membuat redirect berputar (cookie kedaluwarsa: proxy kirim ke `/`, halaman kirim balik ke `/masuk`), jadi pengecekan itu ada di halaman.
+
+---
+
+## D-019 Akun konten diarsipkan, bukan dihapus permanen
+Status: Usulan
+
+**Konteks.** Brief meminta CRUD akun konten. Desain Figma (layar Akun konten, desktop dan mobile) memakai tombol **Arsipkan** dan **Pulihkan**, tanpa tombol hapus.
+
+**Pilihan.** "Hapus" untuk akun konten = arsipkan (`archived_at` diisi). Akun yang diarsipkan tetap tampil di bawah daftar dengan label "diarsipkan" dan tombol **Pulihkan**, tapi hilang dari sidebar. Hapus permanen hanya ada untuk akun Montenku secara keseluruhan (layar Pengaturan, fase berikutnya).
+
+**Alasan.** Nanti akun konten punya konten, jadwal, catatan, dan riwayat pengingat. Menghapusnya permanen karena salah klik akan menghapus semua itu. Arsip bisa dibatalkan, jadi tombolnya tidak perlu dialog konfirmasi.
+
+**Catatan.** Jumlah jadwal dan konten per akun ("2 jadwal berulang, 14 konten" di Figma) belum ditampilkan karena tabelnya belum ada. Ditambahkan saat fiturnya dibuat, bukan diisi angka contoh.
