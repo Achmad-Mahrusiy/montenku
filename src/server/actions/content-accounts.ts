@@ -11,6 +11,7 @@ import {
   updateContentAccount,
 } from "@/server/dal/content-accounts";
 import { requireUser } from "@/server/dal/session";
+import { checkLimit, limits } from "@/server/rate-limit";
 
 const fields = ["name", "platform", "handle", "color", "timezone"] as const;
 type Field = (typeof fields)[number];
@@ -45,6 +46,9 @@ export async function saveContentAccountAction(
   const user = await requireUser();
   const parsed = contentAccountSchema.safeParse(typed(formData));
   if (!parsed.success) return { fieldErrors: z.flattenError(parsed.error).fieldErrors, values: typed(formData) };
+
+  const limited = await checkLimit(limits.accountWriteByUser, user.id);
+  if (limited) return { error: limited, values: typed(formData) };
 
   const rawId = formData.get("id");
   try {

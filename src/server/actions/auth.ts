@@ -6,6 +6,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { toAuthErrorMessage } from "@/lib/auth-errors";
 import { signInSchema, signUpSchema } from "@/lib/validation/auth";
+import { clientIp, emailKey, firstLimitError, limits } from "@/server/rate-limit";
 
 export type AuthFormState = {
   error?: string;
@@ -26,6 +27,12 @@ export async function signInAction(_prev: AuthFormState, formData: FormData): Pr
   const parsed = signInSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { fieldErrors: z.flattenError(parsed.error).fieldErrors, values: typed(formData) };
 
+  const limited = await firstLimitError([
+    [limits.signInByIp, await clientIp()],
+    [limits.signInByEmail, emailKey(parsed.data.email)],
+  ]);
+  if (limited) return { error: limited, values: typed(formData) };
+
   try {
     await auth.api.signInEmail({ body: parsed.data, headers: await headers() });
   } catch (error) {
@@ -38,6 +45,9 @@ export async function signInAction(_prev: AuthFormState, formData: FormData): Pr
 export async function signUpAction(_prev: AuthFormState, formData: FormData): Promise<AuthFormState> {
   const parsed = signUpSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { fieldErrors: z.flattenError(parsed.error).fieldErrors, values: typed(formData) };
+
+  const limited = await firstLimitError([[limits.signUpByIp, await clientIp()]]);
+  if (limited) return { error: limited, values: typed(formData) };
 
   try {
     await auth.api.signUpEmail({ body: parsed.data, headers: await headers() });

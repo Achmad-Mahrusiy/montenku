@@ -327,3 +327,28 @@ Status: Usulan
 **Alasan.** Nanti akun konten punya konten, jadwal, catatan, dan riwayat pengingat. Menghapusnya permanen karena salah klik akan menghapus semua itu. Arsip bisa dibatalkan, jadi tombolnya tidak perlu dialog konfirmasi.
 
 **Catatan.** Jumlah jadwal dan konten per akun ("2 jadwal berulang, 14 konten" di Figma) belum ditampilkan karena tabelnya belum ada. Ditambahkan saat fiturnya dibuat, bukan diisi angka contoh.
+
+---
+
+## D-020 Rate limit: Upstash di Server Action, endpoint HTTP masuk/daftar ditutup
+Status: Usulan
+
+**Konteks.** Brief: Upstash ratelimit di login, pembuatan item, dan endpoint pemicu email. D-017 mencatat bahwa `/api/auth/*` juga harus tertutup, karena endpoint itu bisa dipanggil langsung tanpa lewat form.
+
+**Pilihan.**
+- Batas (sliding window, kunci di Redis berawalan `montenku:`):
+  - Masuk: 20 per IP dan 5 per email per 15 menit.
+  - Daftar: 5 per IP per jam.
+  - Simpan akun konten: 30 per pengguna per menit.
+  - Endpoint pemicu email belum ada; dibatasi saat dibuat.
+- Email disimpan sebagai hash SHA-256 di Redis, bukan teks asli.
+- `/api/auth/sign-in/email` dan `/api/auth/sign-up/email` ditutup lewat `disabledPaths` Better Auth (404). Panggilan `auth.api.*` dari Server Action tetap jalan, jadi satu-satunya jalan masuk adalah action yang dibatasi.
+- Kalau Upstash tidak menjawab dalam 2 detik atau error: permintaan **diizinkan** dan error dicatat di log (fail open).
+- Upstash boleh kosong di laptop (rate limit mati, ada peringatan di log). Di Vercel production (`VERCEL_ENV=production`) wajib diisi; kalau tidak, app gagal menyala.
+
+**Alasan.**
+- Batas per email melindungi satu akun dari tebakan kata sandi dari banyak IP; batas per IP menahan satu mesin mencoba banyak akun.
+- Fail open dipilih karena kalau Upstash bermasalah, lebih baik login tetap jalan beberapa menit tanpa batas daripada semua pengguna terkunci. Untuk produk ini risikonya kecil; bisa diganti fail closed nanti.
+- Menutup endpoint lebih sederhana dan lebih kuat daripada memasang rate limit kedua di Better Auth.
+
+**Trade-off.** Penyimpanan rate limit bawaan Better Auth (memori) tetap aktif untuk endpoint lain seperti `get-session`; di serverless memorinya tidak dibagi antar-instance, jadi lemah, tapi endpoint itu tidak menerima kata sandi.

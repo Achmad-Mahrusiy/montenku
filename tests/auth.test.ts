@@ -63,6 +63,19 @@ describe("daftar dan masuk lewat Better Auth", () => {
     expect(result.user.email).toBe(email);
   });
 
+  it("endpoint HTTP masuk dan daftar ditutup (hanya lewat Server Action yang dibatasi)", async () => {
+    for (const path of ["sign-in/email", "sign-up/email"]) {
+      const response = await auth.handler(
+        new Request(`http://localhost:3000/api/auth/${path}`, {
+          method: "POST",
+          headers: { "content-type": "application/json", origin: "http://localhost:3000" },
+          body: JSON.stringify({ email, password, name: "Tes" }),
+        }),
+      );
+      expect(response.status).toBe(404);
+    }
+  });
+
   it("pesan cadangan untuk error yang tidak dikenal", () => {
     expect(toAuthErrorMessage(new Error("boom"))).toBe("Ada yang salah di server. Coba lagi sebentar lagi.");
   });
