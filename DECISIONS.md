@@ -81,8 +81,8 @@ Status: Usulan
 **Opsi.** Jendela 7 hari (sesuai batas maksimum) atau jendela pendek.
 
 **Pilihan.**
-- Jendela **48 jam**, `retentionSeconds = delay + 24 jam`.
-- Cron harian dan penyapu memanggil **fungsi `reconcile()` yang sama**: materialisasi baris 48 jam ke depan, enqueue baris yang belum di-enqueue untuk `send_at` saat ini, dan pulihkan baris `sending` yang macet.
+- Jendela **48 jam dihitung dari `send_at`**, `retentionSeconds = delay + 24 jam`. Pencarian kemunculan melihat sejauh 48 jam + offset terbesar aturan itu, supaya pengingat "H-3 hari" dibuat tepat waktu.
+- Cron harian dan penyapu memanggil **fungsi `reconcile()` yang sama**. Fungsi ini memateralisasi baris, memulihkan baris `sending` yang macet, **mengirim langsung** pending yang sudah lewat waktu lewat `deliver()` (fungsi yang sama dengan konsumen), lalu meng-enqueue pending masa depan yang belum di-enqueue untuk `send_at` saat ini.
 - Saat item atau aturan diubah, baris yang jatuh tempo dalam jendela langsung di-enqueue setelah transaksi commit, tanpa menunggu cron.
 
 **Alasan.**
@@ -107,6 +107,7 @@ Status: Usulan
 **Alasan.**
 - DB menjadi satu-satunya sumber kebenaran, sedangkan pesan hanya "ketukan pintu".
 - Dedup queue berlaku selama retensi pesan. Kalau kuncinya hanya `id`, pesan untuk jadwal yang digeser akan dianggap duplikat dan dibuang. Itulah alasan ada dua kunci.
+- Batas yang diketahui: jika pengingat digeser A → B → kembali ke A dalam masa retensi, pesan A yang baru dibuang dedup. Penyapu tetap mengirimnya, tapi bisa telat hingga sekitar 30 menit. Ini diterima; kalau tidak, kunci bisa diganti ke penghitung versi.
 
 ---
 
@@ -124,12 +125,20 @@ Status: **Usulan, perlu persetujuanmu**
 - Resend gagal: kembali ke `pending`, `attempts+1`, lalu lempar error agar queue mengulang dengan backoff.
 - Setelah 5 percobaan: `failed`, ditampilkan di UI.
 - Konsumen diset `maxDeliveries` eksplisit karena defaultnya tidak terbatas dan Vercel Queues tidak punya dead-letter queue.
-- Penyapu mengembalikan baris `sending` yang lebih tua dari 5 menit ke `pending`.
+- Penyapu mengembalikan baris `sending` yang lebih tua dari 5 menit ke `pending`, lalu langsung mengirimnya lewat `deliver()`. Enqueue ulang tidak dipakai karena akan dibuang dedup queue (kunci `id:send_at` sama).
 
 **Alasan.**
-- UPDATE bersyarat tetap menjamin hanya satu pekerja yang mengirim.
+- UPDATE bersyarat tetap menjamin hanya satu pekerja yang mengirim, entah itu konsumen atau penyapu.
 - Jika crash terjadi setelah email terkirim tapi sebelum status `sent`, pengiriman ulang memakai kunci Resend yang sama (`reminder:id:send_at`, berlaku 24 jam), sehingga Resend tidak mengirim dua kali.
 - Hasilnya: tidak hilang dan tidak ganda.
+
+**Test wajib di Fase 4 (jam palsu, Resend dan queue di-mock):**
+- Pesan yang sama dikirim 2x: email terkirim 1x.
+- Konsumen dan penyapu berjalan bersamaan untuk baris yang sama: email terkirim 1x.
+- Crash setelah klaim (sebelum Resend): penyapu memulihkan dan mengirim, email terkirim 1x.
+- Crash setelah Resend sukses (sebelum `sent`): pengiriman ulang memakai kunci Resend yang sama, Resend mock mencatat 1 email.
+- Resend gagal 5x: status `failed`.
+- Item digeser atau dihapus: pesan lama menjadi no-op.
 
 ---
 
@@ -152,18 +161,23 @@ Status: Usulan
 
 ---
 
-## D-009 Lokasi penyapu (sweeper)
-Status: **Usulan, perlu pilihanmu**
+## D-009 Penjadwal: Cron Jobs untuk pengisi harian, Vercel Schedules untuk penyapu
+Status: Usulan
 
-**Konteks.** Cron Vercel Hobby minimal sekali sehari, jadi tidak bisa dipakai untuk penyapu tiap 15 menit.
+**Konteks (dari dokumentasi Vercel, dicek 22 Nov 2026).**
+- Cron Jobs kini berlabel *legacy*. Di Hobby: minimal sekali sehari, presisi ±59 menit; ekspresi seperti `*/30 * * * *` gagal saat deploy.
+- Vercel Schedules adalah penggantinya, masih *Beta* di semua plan. Di Hobby: paling sering tiap 15 menit, jitter selalu 15 menit, kuota 5.000 run per periode tagihan. Dikonfigurasi lewat `vercel.json` (`schedules` + `experimentalTriggers` tipe `schedule/v1beta`).
+- GitHub Actions: gratis di repo publik, tapi workflow terjadwal dimatikan setelah 60 hari tanpa aktivitas. Di repo privat ada jatah sekitar $12/bulan, dan `*/15` (≈2.900 run/bulan) berisiko melewatinya.
 
-**Opsi.**
-- A. Vercel Schedules: menurut dokumentasi, Hobby bisa minimal tiap 15 menit dengan jitter, kuota 5.000 run per periode (15 menit ≈ 2.900 run/bulan). Ini fitur baru dan hubungannya dengan Cron Jobs belum jelas di dokumentasi.
-- B. GitHub Actions `*/15`: gratis, tapi GitHub sendiri menyebut jadwalnya bisa telat atau terlewat saat beban tinggi.
+**Pilihan.**
+- Pengisi harian: Cron Jobs (`0 1 * * *`), sesuai brief.
+- Penyapu: Vercel Schedules tiap 15 menit (≈2.880 run/bulan, masih di bawah 5.000).
+- Keduanya memanggil `/api/cron/reconcile` dengan `CRON_SECRET`.
 
-**Pilihan.** A jika tersedia di akunmu saat Fase 4; jika tidak, B. Keduanya memanggil `/api/cron/reconcile` dengan `CRON_SECRET`.
-
-**Alasan.** Penyapu hanya jaring pengaman. Ketepatan waktu tetap dari pesan tertunda di queue, jadi keterlambatan beberapa menit di penyapu bisa diterima.
+**Alasan.**
+- Dua penjadwal yang berbeda produk: jika Schedules (Beta) bermasalah, Cron Jobs harian tetap mengisi antrean.
+- Penyapu hanya jaring pengaman. Ketepatan waktu tetap dari pesan tertunda di queue, jadi jeda penyapu sampai sekitar 30 menit (interval + jitter) bisa diterima.
+- GitHub Actions hanya dipakai untuk keep-alive harian (D-012), bukan penyapu.
 
 ---
 
@@ -208,7 +222,7 @@ Status: Usulan
 | Q2 | Jam senyap: pengingat ditunda sampai jam senyap selesai, atau dibuang? | **Ditunda** ke akhir jam senyap. Jika hasil penundaan melewati waktu posting, kirim tepat sebelum jam senyap mulai. Jam senyap memakai `user_settings.timezone`. |
 | Q3 | RRULE diedit: nasib pengecualian lama dan pending reminder? | Edit di tempat. Pengecualian yang kuncinya tidak lagi cocok dibiarkan (diabaikan). Item tertaut tetap di `target_at`-nya. Pending reminder masa depan dibatalkan lalu dibuat ulang oleh `reconcile()`. |
 | Q4 | Bentrok = jam yang sama persis (menit), atau dalam rentang, mis. ±30 menit? | **Menit yang sama persis**, sesuai brief ("jam yang sama"). |
-| Q5 | D-007 (status `sending`) dan D-009 (lokasi penyapu) | Setujui D-007; D-009 pilih A, fallback ke B. |
+| Q5 | D-007 menambah status `sending`, menyimpang dari daftar status di brief. Setuju? | **Setuju.** Tanpa status ini, crash setelah klaim membuat pengingat hilang. |
 
 Asumsi lain (koreksi jika salah):
 - Catatan wajib punya akun konten; tautan ke item opsional.

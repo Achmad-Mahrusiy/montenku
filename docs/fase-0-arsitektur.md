@@ -19,7 +19,7 @@ flowchart LR
   C --> DAL
   C --> RS[Resend]
   CR[Vercel Cron harian] --> REC["/api/cron/reconcile"]
-  SW[Penyapu tiap 15 mnt] --> REC
+  SW["Penyapu tiap 15 mnt<br/>(Vercel Schedules)"] --> REC
   REC --> DAL
   REC --> Q
   GH[GitHub Actions terjadwal] --> H["/api/health"] --> DB
@@ -145,7 +145,7 @@ erDiagram
 
 Catatan ERD:
 - `occurrence_key` = jam dinding asli kemunculan, format `YYYY-MM-DDTHH:mm` (mis. `2026-12-01T19:00`). Kunci ini **tidak berubah** walau zona waktu akun diganti, jadi pengecualian dan item yang tertaut tetap menempel ke slot yang benar. Untuk item sekali-jadi, kuncinya konstan `once`.
-- `reminder_settings` adalah definisi ("H-1 hari"). `reminders` adalah baris konkret per kemunculan yang benar-benar akan dikirim, dan hanya dibuat untuk jendela 48 jam ke depan (lihat §4).
+- `reminder_settings` adalah definisi ("H-1 hari"). `reminders` adalah baris konkret per kemunculan yang benar-benar akan dikirim, dan hanya dibuat jika `send_at`-nya jatuh dalam 48 jam ke depan (lihat §4).
 - `status` item: `ide → naskah → produksi → editing → siap → terposting`.
 - Enum platform hanya berisi 3 sesuai brief. Menambah "lainnya" berarti fitur baru, jadi tanya dulu.
 - Hapus akun memakai `ON DELETE CASCADE` dari `user`.
@@ -186,12 +186,14 @@ sequenceDiagram
   U->>DB: transaksi: upsert baris pending, batalkan baris yang tidak berlaku
   U-->>Q: setelah commit: send() jika send_at < now+48 jam
   Note over R: Cron harian dan penyapu 15 mnt memanggil fungsi yang sama
-  R->>DB: materialisasi kemunculan 48 jam ke depan (upsert, unik setting+occurrence)
-  R->>DB: ambil pending dengan enqueued_send_at berbeda dari send_at
+  R->>DB: materialisasi baris dengan send_at dalam 48 jam ke depan (upsert, unik setting+occurrence)
+  R->>DB: kembalikan 'sending' yang macet lebih dari 5 mnt ke 'pending'
+  R->>DB: pending yang sudah lewat send_at lebih dari 2 mnt: deliver() langsung di sini
+  R->>DB: ambil pending masa depan dengan enqueued_send_at berbeda dari send_at
   R->>Q: send(delaySeconds, idempotencyKey = id:send_at)
   R->>DB: set enqueued_send_at = send_at
-  R->>DB: kembalikan 'sending' yang macet lebih dari 5 mnt ke 'pending'
   Q->>C: kirim pesan (bisa dua kali)
+  Note over C,M: deliver(id, send_at): fungsi yang sama dipakai konsumen dan reconcile()
   C->>DB: baca baris. Tidak ada, bukan pending, atau send_at beda: ack, selesai
   C->>DB: UPDATE status='sending' WHERE id=$1 AND status='pending' AND send_at=$2
   alt 0 baris berubah
@@ -216,7 +218,8 @@ Kenapa bentuknya begini (ringkas; detail di DECISIONS.md):
   - Queue: `id:send_at`. Dedup queue berlaku selama retensi pesan. Saat pengingat digeser, `send_at` baru menghasilkan kunci baru, jadi pesan barunya diterima.
 - **Status `sending` (usulan tambahan)**, lihat D-007. Tanpa status ini, crash setelah klaim membuat pengingat hilang diam-diam.
 - **Jendela 48 jam, retensi = delay + 24 jam.** Delay maksimum Queues 7 hari, dan delay yang melebihi TTL ditolak (HTTP 400). Retensi default hanya 24 jam, jadi harus selalu diisi eksplisit. Dengan jendela 48 jam, satu kali cron harian yang gagal masih aman.
-- **Penyapu memanggil `reconcile()` yang sama.** Ia ikut memateralisasi, mengirim yang terlewat, dan memulihkan yang macet. Satu jalur kode berarti lebih sedikit tempat bug.
+- **Jendela dihitung dari `send_at`, bukan dari waktu posting.** Untuk mencari kemunculan, `reconcile()` melihat sejauh 48 jam + offset terbesar di aturan itu. Tanpa ini, pengingat "H-3 hari" baru dibuat saat waktunya sudah lewat sehari.
+- **Penyapu memanggil `reconcile()` yang sama**, dan baris pending yang sudah lewat waktu **dikirim langsung** lewat `deliver()`, tidak di-enqueue ulang. Alasannya: enqueue ulang dengan kunci `id:send_at` yang sama akan dibuang dedup queue. Ini menutup kasus crash setelah klaim: queue mengirim ulang, konsumen melihat `sending` lalu ack, penyapu memulihkan baris ke `pending`, dan `deliver()` di penyapu mengirimnya. Kunci Resend yang sama mencegah email ganda jika email pertama ternyata sudah terkirim.
 - Pengingat yang `send_at`-nya sudah lewat saat dibuat (mis. "H-1" untuk posting 2 jam lagi) dikirim segera (`delaySeconds: 0`). Ini asumsi dan bisa diubah.
 
 ## 5. Isolasi data
@@ -234,12 +237,12 @@ Kenapa bentuknya begini (ringkas; detail di DECISIONS.md):
 | 1 | Zona waktu salah hitung (DST, TZ host server berbeda) | Pengingat meleset 1 jam | Temporal untuk konversi, `rrule` tanpa TZID, test di Asia/Jakarta + America/New_York, CI menjalankan test dengan `TZ=UTC` dan `TZ=America/New_York` |
 | 2 | Pengguna mengganti zona waktu akun | Slot bergeser, pengecualian lepas | `occurrence_key` = jam dinding; reconcile membatalkan lalu membuat ulang pending reminder akun itu; test khusus. Semantiknya menunggu jawaban (Q1) |
 | 3 | Pesan queue terkirim dua kali (at-least-once) | Email ganda | UPDATE bersyarat atomik + `Idempotency-Key` Resend (24 jam) + test kirim pesan yang sama 2x |
-| 4 | Crash setelah klaim, atau Resend gagal | Pengingat hilang | Status `sending` + lease 5 mnt yang dipulihkan penyapu; retry dengan backoff; `failed` setelah 5 percobaan |
+| 4 | Crash setelah klaim, Resend gagal, atau jatah delivery queue habis | Pengingat hilang | Status `sending` + lease 5 mnt yang dipulihkan penyapu; penyapu mengirim langsung pending yang lewat waktu; retry dengan backoff; `failed` setelah 5 percobaan |
 | 5 | Batas delay 7 hari, retensi default 24 jam | Pesan ditolak atau kedaluwarsa | Jendela 48 jam; `retentionSeconds` eksplisit |
 | 6 | Pesan basi setelah item diubah atau dihapus | Email salah | Konsumen membaca ulang baris dan mencocokkan `status` + `send_at` |
 | 7 | Vercel Queues masih Beta (`experimentalTriggers`, `queue/v2beta`) | API berubah | Semua akses queue di satu adapter `src/server/queue.ts`; pindah ke QStash cukup mengganti satu file |
 | 8 | Cron Vercel Hobby: minimal 1x/hari, presisi ±59 mnt, bisa terlewat atau ganda | Pengisian telat | Cron hanya mengisi; jendela 48 jam; penyapu tiap 15 mnt; reconcile idempotent |
-| 9 | Cron Hobby tidak bisa tiap 15 mnt untuk penyapu | Jaring pengaman lemah | Opsi A: Vercel Schedules (Hobby minimal 15 mnt, 5.000 run/periode) jika tersedia di akunmu. Opsi B: GitHub Actions `*/15` (bisa telat atau terlewat saat beban tinggi). Lihat D-009 |
+| 9 | Cron Jobs Hobby tidak bisa tiap 15 mnt untuk penyapu | Jaring pengaman lemah | Penyapu memakai Vercel Schedules (Beta; Hobby: tiap 15 mnt, jitter 15 mnt, 5.000 run/periode). Cron harian tetap Cron Jobs biasa, jadi masih ada pengisi jika Schedules bermasalah. Lihat D-009 |
 | 10 | Supabase Free pause setelah 1 minggu tidak aktif | App mati | `/api/health` + GH Actions harian. Cron reconcile harian juga menyentuh DB, jadi ada dua sumber aktivitas |
 | 11 | GitHub mematikan workflow terjadwal di repo publik yang 60 hari tanpa aktivitas | Keep-alive berhenti | Cron Vercel tetap menyentuh DB; README menjelaskan cara mengaktifkan ulang |
 | 12 | Resend tanpa domain terverifikasi kemungkinan hanya bisa mengirim ke email pemilik akun Resend | Pengguna lain tidak menerima email | **Belum terverifikasi.** Dicek di Fase 4; demo memakai email pemilik, atau verifikasi domain |
