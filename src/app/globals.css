@@ -127,9 +127,15 @@
         @apply bg-background text-foreground;
     }
 
+    a[href],
+    label[for],
     button:not(:disabled),
     [role="button"]:not(:disabled) {
         cursor: pointer;
+    }
+
+    button:disabled {
+        cursor: not-allowed;
     }
 
     html {

@@ -287,3 +287,27 @@ Status: Usulan
 **Pilihan.** Aturan ESLint `no-restricted-imports` melarang impor `@/db` di luar `src/server/dal/**`, `src/db/**`, dan `src/lib/auth.ts`.
 
 **Alasan.** Kesalahan yang paling berbahaya (query tanpa filter `user_id` di halaman atau action) sudah gagal di `npm run lint`, sebelum sampai ke review atau test.
+
+---
+
+## D-017 Form masuk dan daftar memakai Server Actions, bukan `authClient`
+Status: Usulan
+
+**Konteks.** Better Auth bisa dipanggil dari browser (`authClient.signIn.email`) atau dari server (`auth.api.signInEmail` di dalam Server Action). Brief: semua input dari luar divalidasi Zod.
+
+**Opsi.** (a) `authClient` di browser: request langsung ke `/api/auth/*`. (b) Server Action: form dikirim ke server kita, divalidasi Zod, lalu memanggil `auth.api`.
+
+**Pilihan.** (b). File `src/lib/auth-client.ts` dihapus karena tidak dipakai. Route `/api/auth/[...all]` tetap dipasang untuk fitur Better Auth berikutnya (verifikasi email, reset kata sandi).
+
+**Alasan.** Validasi Zod dan pesan error berbahasa Indonesia ada di satu tempat (`src/server/actions/auth.ts`), form tetap bisa dikirim walau JavaScript belum termuat, dan rate limit di Langkah 5 cukup dipasang di action yang sama. Konsekuensi: rate limit nanti juga harus menutup `/api/auth/*`, karena endpoint itu tetap bisa dipanggil langsung.
+
+---
+
+## D-018 Pengecekan sesi dua lapis: cookie di `proxy.ts`, sesi asli di halaman
+Status: Usulan
+
+**Konteks.** Next.js 16 memakai `proxy.ts` (dulu middleware). Membaca sesi dari database di setiap request membuat semua halaman lebih lambat.
+
+**Pilihan.** `proxy.ts` hanya mengecek ada atau tidaknya cookie sesi lalu mengarahkan ke `/masuk`. Setiap halaman yang dilindungi memanggil `requireUser()` yang benar-benar memeriksa sesi ke database. Halaman `/masuk` dan `/daftar` mengalihkan pengguna yang sudah masuk ke `/` memakai sesi asli, bukan cookie.
+
+**Alasan.** Cookie bisa dipalsukan, jadi proxy hanya mempercepat redirect, bukan pengaman. Pengecekan "sudah masuk" di proxy berbasis cookie bisa membuat redirect berputar (cookie kedaluwarsa: proxy kirim ke `/`, halaman kirim balik ke `/masuk`), jadi pengecekan itu ada di halaman.
