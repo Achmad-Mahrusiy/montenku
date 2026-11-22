@@ -1,12 +1,12 @@
-# DECISIONS.md
+# DECISIONS.md (Montenku)
 
-Format per keputusan: **Konteks → Opsi → Pilihan → Alasan**. Status `Usulan` berarti menunggu persetujuan.
+Format per keputusan: **Konteks → Opsi → Pilihan → Alasan**. Status `Usulan` berarti menunggu persetujuan. Pertanyaan Q1–Q5 disetujui dengan rekomendasi default pada 22 Nov 2026.
 Diagram dan ERD ada di [docs/fase-0-arsitektur.md](docs/fase-0-arsitektur.md).
 
 ---
 
 ## D-001 Library zona waktu: Temporal (`temporal-polyfill`)
-Status: Usulan
+Status: Disetujui (22 Nov 2026)
 
 **Konteks.** Pengingat harus tepat di zona waktu akun, termasuk zona yang punya DST. Kasus sulitnya: jam yang tidak ada (saat jam maju) dan jam yang muncul dua kali (saat jam mundur).
 
@@ -24,7 +24,7 @@ Status: Usulan
 ---
 
 ## D-002 Occurrence jadwal berulang: dihitung saat dibutuhkan
-Status: Usulan
+Status: Disetujui (22 Nov 2026)
 
 **Konteks.** "Upload tiap Selasa dan Jumat 19:00" tidak punya tanggal akhir.
 
@@ -43,7 +43,7 @@ Status: Usulan
 ---
 
 ## D-003 Cara memakai `rrule`: tanggal "mengambang", tanpa TZID
-Status: Usulan
+Status: Disetujui (22 Nov 2026)
 
 **Konteks.** Dukungan TZID di `rrule` bergantung pada Intl dan zona host, dan ada laporan bug (hasil `RRule` vs `RRuleSet` tidak konsisten, regresi `after()` dengan TZID).
 
@@ -58,7 +58,7 @@ Status: Usulan
 ---
 
 ## D-004 `occurrence_key` = jam dinding asli
-Status: Usulan
+Status: Disetujui (22 Nov 2026)
 
 **Konteks.** Pengecualian, item tertaut, dan pengingat harus menunjuk ke kemunculan tertentu secara stabil.
 
@@ -74,7 +74,7 @@ Status: Usulan
 ---
 
 ## D-005 Pengisian pengingat: satu fungsi `reconcile()`, jendela 48 jam
-Status: Usulan
+Status: Disetujui (22 Nov 2026)
 
 **Konteks.** Delay maksimum Vercel Queues 7 hari, dan delay yang melebihi retensi pesan ditolak (retensi default 24 jam). Cron Vercel di Hobby berjalan minimal 1x sehari dengan presisi ±59 menit, dan bisa terlewat atau berjalan ganda.
 
@@ -95,7 +95,7 @@ Status: Usulan
 ---
 
 ## D-006 Pembatalan dan penjadwalan ulang lewat DB, dengan dua kunci idempotency
-Status: Usulan
+Status: Disetujui (22 Nov 2026)
 
 **Konteks.** Vercel Queues tidak punya API untuk membatalkan pesan yang sudah dikirim. Pengiriman pesannya at-least-once.
 
@@ -112,7 +112,7 @@ Status: Usulan
 ---
 
 ## D-007 Tambah status `sending` dengan lease (menyimpang dari brief)
-Status: **Usulan, perlu persetujuanmu**
+Status: Disetujui (22 Nov 2026)
 
 **Konteks.** Brief meminta `UPDATE ... WHERE status='pending'` lalu kirim email jika satu baris berubah. Jika update itu langsung ke `sent` lalu fungsi crash atau Resend gagal, pengingat dianggap terkirim padahal tidak, dan hilang tanpa jejak.
 
@@ -143,7 +143,7 @@ Status: **Usulan, perlu persetujuanmu**
 ---
 
 ## D-008 Isolasi data dijaga DAL; RLS hanya menutup Data API
-Status: Usulan
+Status: Disetujui (22 Nov 2026)
 
 **Konteks.** App terhubung sebagai role `postgres` lewat pooler, dan role ini mem-bypass RLS.
 
@@ -162,7 +162,7 @@ Status: Usulan
 ---
 
 ## D-009 Penjadwal: Cron Jobs untuk pengisi harian, Vercel Schedules untuk penyapu
-Status: Usulan
+Status: Disetujui (22 Nov 2026)
 
 **Konteks (dari dokumentasi Vercel, dicek 22 Nov 2026).**
 - Cron Jobs kini berlabel *legacy*. Di Hobby: minimal sekali sehari, presisi ±59 menit; ekspresi seperti `*/30 * * * *` gagal saat deploy.
@@ -182,7 +182,7 @@ Status: Usulan
 ---
 
 ## D-010 Vercel Queues di balik satu adapter
-Status: Usulan
+Status: Disetujui (22 Nov 2026)
 
 **Konteks.** Dokumentasi menyebut Queues "Beta on all plans". Konfigurasinya memakai `experimentalTriggers` dengan `type: "queue/v2beta"`. Paketnya `@vercel/queue` (`send`, `handleCallback`).
 
@@ -193,7 +193,7 @@ Status: Usulan
 ---
 
 ## D-011 Penamaan: `content_accounts`, bukan `accounts`
-Status: Usulan
+Status: Disetujui (22 Nov 2026)
 
 **Konteks.** Better Auth sudah memakai tabel `account` untuk akun login.
 
@@ -204,7 +204,7 @@ Status: Usulan
 ---
 
 ## D-012 Keep-alive berlapis
-Status: Usulan
+Status: Disetujui (22 Nov 2026)
 
 **Konteks.** Supabase Free mem-pause proyek setelah 1 minggu tidak aktif. GitHub mematikan workflow terjadwal di repo publik yang 60 hari tanpa aktivitas.
 
@@ -228,3 +228,49 @@ Asumsi lain (koreksi jika salah):
 - Catatan wajib punya akun konten; tautan ke item opsional.
 - Tag disimpan sebagai `text[]` di item, tanpa tabel tag.
 - Pengingat yang waktunya sudah lewat saat dibuat langsung dikirim.
+
+---
+
+## D-013 Database lokal: Docker Desktop + Supabase CLI
+Status: Disetujui (22 Nov 2026)
+
+**Konteks.** Test isolasi dan pemeriksaan RLS butuh Postgres sungguhan di laptop dan di CI.
+
+**Opsi.** Docker + Supabase CLI, PGlite (Postgres WASM di dalam Node), atau PostgreSQL biasa untuk Windows.
+
+**Pilihan.** Docker Desktop + Supabase CLI sebagai dev dependency (`npx supabase start`). CI memakai Postgres service container.
+
+**Alasan.** Paling mirip produksi (role `anon`/`authenticated`, Data API, RLS sama persis dengan Supabase cloud) dan sesuai brief.
+
+---
+
+## D-014 Node 24.x dikunci di `engines`
+Status: Usulan
+
+**Konteks.** Laptop memakai Node 24, sedangkan default Vercel saat ini Node 26.
+
+**Pilihan.** `"engines": { "node": "24.x" }` dan `@types/node@24`.
+
+**Alasan.** Versi yang sama di laptop, CI, dan Vercel, jadi bug "jalan di laptop tapi tidak di server" berkurang. Temporal tetap lewat polyfill (D-001), jadi tidak bergantung pada Node 26.
+
+---
+
+## D-015 Nama folder rute berbahasa Indonesia
+Status: Usulan
+
+**Konteks.** Brief: UI berbahasa Indonesia, kode berbahasa Inggris. URL terlihat oleh pengguna.
+
+**Pilihan.** Segmen URL berbahasa Indonesia (`/masuk`, `/daftar`, `/akun-konten`). Nama file, fungsi, variabel, dan tabel tetap bahasa Inggris.
+
+**Alasan.** URL adalah bagian dari UI yang dibaca pengguna. Kalau kamu lebih suka URL berbahasa Inggris, ini cukup diganti dengan mengganti nama folder sebelum Langkah 3.
+
+---
+
+## D-016 Aturan lint: database hanya boleh diimpor oleh DAL
+Status: Usulan
+
+**Konteks.** D-008 menjadikan DAL satu-satunya jalan ke database.
+
+**Pilihan.** Aturan ESLint `no-restricted-imports` melarang impor `@/db` di luar `src/server/dal/**`, `src/db/**`, dan `src/lib/auth.ts`.
+
+**Alasan.** Kesalahan yang paling berbahaya (query tanpa filter `user_id` di halaman atau action) sudah gagal di `npm run lint`, sebelum sampai ke review atau test.

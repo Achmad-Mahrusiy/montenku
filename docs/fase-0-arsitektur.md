@@ -1,4 +1,4 @@
-# PostingKu — Fase 0: Arsitektur
+# Montenku (Monitor Kontenku): Fase 0, Arsitektur
 
 Status: **draf, menunggu persetujuan**. Belum ada kode. Keputusan teknis dan alasannya ada di [DECISIONS.md](../DECISIONS.md); dokumen ini menjelaskan bentuk sistemnya.
 
