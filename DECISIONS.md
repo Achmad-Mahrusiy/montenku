@@ -231,16 +231,29 @@ Asumsi lain (koreksi jika salah):
 
 ---
 
-## D-013 Database lokal: Docker Desktop + Supabase CLI
-Status: Disetujui (22 Nov 2026)
+## D-013 Database dev: Supabase cloud; database test: PGlite
+Status: Disetujui (22 Nov 2026), menggantikan pilihan awal Docker + Supabase CLI
 
-**Konteks.** Test isolasi dan pemeriksaan RLS butuh Postgres sungguhan di laptop dan di CI.
+**Konteks.** Test isolasi dan pemeriksaan RLS butuh Postgres sungguhan. Supabase CLI lokal sempat dicoba, tapi butuh Docker Desktop: sekitar 7–8 GB disk dan beberapa GB RAM. Terlalu berat untuk laptop yang dipakai.
 
-**Opsi.** Docker + Supabase CLI, PGlite (Postgres WASM di dalam Node), atau PostgreSQL biasa untuk Windows.
+**Opsi.**
+1. Docker + Supabase CLI.
+2. Supabase cloud untuk dev, PGlite untuk test.
+3. Proyek Supabase kedua khusus test.
+4. Ganti ke MySQL.
 
-**Pilihan.** Docker Desktop + Supabase CLI sebagai dev dependency (`npx supabase start`). CI memakai Postgres service container.
+**Pilihan.** Opsi 2.
+- Dev memakai proyek Supabase Free di web: transaction pooler untuk app, session pooler untuk migrasi.
+- Test memakai PGlite (Postgres yang dikompilasi ke WASM, sekitar 28 MB di `node_modules`). PGlite dijalankan otomatis oleh `tests/helpers/global-setup.ts` lewat `@electric-sql/pglite-socket`, sehingga kode app tetap memakai `postgres-js` tanpa perubahan.
+- CI nanti memakai cara yang sama.
 
-**Alasan.** Paling mirip produksi (role `anon`/`authenticated`, Data API, RLS sama persis dengan Supabase cloud) dan sesuai brief.
+**Alasan.**
+- Tanpa install berat. Database test selalu kosong di setiap run dan tidak pernah menyentuh data dev.
+- MySQL ditolak karena desain Fase 0 bergantung pada fitur Postgres (`timestamptz`, RLS, `pg_policies`) dan hosting gratis untuk Vercel.
+
+**Trade-off.**
+- PGlite tidak punya role Supabase (`anon`/`authenticated`). Karena itu test RLS memeriksa katalog (`pg_tables.rowsecurity`, `pg_policies`), bukan mencoba query sebagai `anon`.
+- Satu proses PGlite melayani query satu per satu, sehingga test berjalan berurutan.
 
 ---
 
