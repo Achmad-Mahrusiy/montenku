@@ -40,11 +40,11 @@ describe("sendEmail (Resend)", () => {
     await expect(sendEmail(email, "k")).resolves.toBeUndefined();
   });
 
-  it("error lain dilempar, supaya pengingat dicoba lagi lalu ditandai gagal", async () => {
-    stubFetch(409, '{"name":"concurrent_idempotent_requests"}');
-    await expect(sendEmail(email, "k")).rejects.toThrow("Resend 409");
-    stubFetch(500, '{"name":"application_error"}');
-    await expect(sendEmail(email, "k")).rejects.toThrow("Resend 500");
+  it("error lain dilempar dengan pesan ringkas, supaya pengingat dicoba lagi lalu ditandai gagal", async () => {
+    stubFetch(409, '{"message":"Another request is in progress.","name":"concurrent_idempotent_requests","statusCode":409}');
+    await expect(sendEmail(email, "k")).rejects.toThrow("Resend 409 concurrent_idempotent_requests: Another request is in progress.");
+    stubFetch(500, "Bad Gateway");
+    await expect(sendEmail(email, "k")).rejects.toThrow("Resend 500 Bad Gateway");
   });
 
   it("tanpa RESEND_API_KEY: gagal dengan jelas, tidak pura-pura terkirim", async () => {

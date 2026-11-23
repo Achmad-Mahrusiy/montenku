@@ -512,7 +512,7 @@ Status: Usulan
 **Konteks.** Fase 4 Langkah 2 menyambungkan mesin pengingat (D-029) ke Resend, Vercel Queues, dan penjadwal Vercel. Dokumentasi resmi dibaca 23 Nov 2026: Vercel Cron Jobs (berlabel *legacy*, digantikan Schedules), Vercel Schedules (Beta), Resend send-email, idempotency-keys, dan errors.
 
 **Pilihan.**
-- **Resend lewat `fetch`** (`src/server/mailer.ts`), tanpa SDK: satu POST ke `https://api.resend.com/emails` dengan header `Idempotency-Key`. Respons **409 `invalid_idempotent_request`** (kunci sama, isi berbeda, misalnya judul diubah di antara dua percobaan) dianggap sudah terkirim, supaya pengingat yang sudah sampai tidak berakhir "Gagal". Nama field JSON error tidak didokumentasikan, jadi yang dicari adalah teks nama error di isi respons. Tanpa `RESEND_API_KEY`, pengiriman gagal dengan pesan yang jelas, tidak pura-pura terkirim.
+- **Resend lewat `fetch`** (`src/server/mailer.ts`), tanpa SDK: satu POST ke `https://api.resend.com/emails` dengan header `Idempotency-Key`. Respons **409 `invalid_idempotent_request`** (kunci sama, isi berbeda, misalnya judul diubah di antara dua percobaan) dianggap sudah terkirim, supaya pengingat yang sudah sampai tidak berakhir "Gagal". Nama field JSON error tidak didokumentasikan, jadi yang dicari adalah teks nama error di isi respons. Diuji langsung ke Resend 23 Nov 2026 (alamat uji `delivered@resend.dev`): kunci dan isi sama mengembalikan ID email yang sama tanpa kirim ulang; kunci sama dengan isi berbeda dijawab `409 {"message", "name": "invalid_idempotent_request", "statusCode": 409}`. Tanpa `RESEND_API_KEY`, pengiriman gagal dengan pesan yang jelas, tidak pura-pura terkirim.
 - **Semua kode queue di `src/server/reminder-jobs.ts`** (D-010): `send()` ke topik `reminders` dengan delay, retensi, dan kunci idempotency dari D-006. Konsumen `src/app/api/queues/reminders/route.ts` memakai `handleCallback`, dengan backoff 10 detik sampai 5 menit dan berhenti setelah 6 pengiriman.
 - **Queue hanya aktif di Vercel** (`process.env.VERCEL`). Di laptop tidak ada emulator, jadi pengiriman ke queue dilewati dan pengingat dikirim oleh route cron saat jatuh tempo. Ditandai *shortcut* di kode; dicek ulang di Fase 7.
 - **Satu route `/api/cron/reconcile`** (GET, `Authorization: Bearer <CRON_SECRET>`, dibandingkan *constant-time*) dipanggil oleh Cron Job harian `0 1 * * *` (08.00 WIB) **dan** Schedule `*/15 * * * *` (penyapu), sesuai D-009.
@@ -520,3 +520,21 @@ Status: Usulan
 - `RESEND_API_KEY` dan `CRON_SECRET` wajib di production; `EMAIL_FROM` bawaan `Montenku <onboarding@resend.dev>`.
 
 **Belum terverifikasi sampai deploy (Fase 7).** Kunci `functions` di `vercel.json` memakai path `src/app/...` (contoh di dokumentasi tanpa folder `src`), dan pengiriman queue sungguhan. Keduanya tidak bisa diuji tanpa proyek Vercel.
+
+**Tambahan dari uji Langkah 3 (23 Nov 2026).** Kunci dari permintaan yang **ditolak** Resend (422, misalnya alamat `example.com`) tidak diingat: percobaan ulang dengan kunci sama dan isi berbeda dijawab 200. Jadi "Kirim ulang" untuk pengingat gagal tetap memakai kunci `reminder:id:send_at` yang sama tanpa risiko 409. Pesan error disimpan ringkas (`Resend 422 validation_error: ...`), bukan JSON mentah, karena ditampilkan ke pengguna.
+
+---
+
+## D-031 Panel pengingat di halaman item dan editor jadwal
+Status: Usulan
+
+**Konteks.** Fase 4 Langkah 3: pengguna perlu mengatur pengingat dan melihat statusnya. Jawaban pengguna: tambahkan tombol "Kirim ulang" untuk pengingat yang gagal.
+
+**Pilihan.**
+- Satu komponen server `src/app/(app)/reminder-panel.tsx` dipakai di halaman item (`/konten/[id]`) dan editor jadwal (`/jadwal?ubah=`). Setiap tombol adalah form kecil ke Server Action (`src/server/actions/reminders.ts`), tanpa state di klien.
+- Halaman item: satu baris per offset, dengan jam kirim dalam zona akun dan status (Terjadwal, Sedang dikirim, Terkirim, Dibatalkan, Gagal, atau Lewat jika waktu posting sudah lewat sebelum baris dibuat). Pengingat gagal menampilkan pesan error terakhir dan "Kirim ulang".
+- Editor jadwal: daftar offset saja (pengingat dibuat per kemunculan dalam 48 jam, D-005), ditambah daftar kemunculan yang gagal, masing-masing dengan "Kirim ulang".
+- "Kirim ulang" mengembalikan baris `failed` ke `pending` dengan `attempts` 0, lalu langsung menjalankan `reconcile()` (ditunggu, bukan `after()`), supaya status baru terlihat setelah halaman dimuat. Hanya baris milik pengguna yang berstatus `failed` yang bisa diulang.
+- Tambah dan Hapus menjalankan `reconcile()` lewat `after()` seperti aksi lain (D-030). Pilihan offset di form hanya preset yang belum dipakai.
+
+**Alasan.** Mengikuti pola yang sudah ada (Server Action, form tidak terkontrol, ownership dicek di DAL). Diuji di browser dengan Resend sungguhan: pengingat gagal 5 kali karena alamat `example.com`, alamat diganti ke `delivered@resend.dev`, "Kirim ulang" membuatnya Terkirim.

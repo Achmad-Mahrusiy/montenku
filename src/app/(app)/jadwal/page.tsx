@@ -16,8 +16,10 @@ import {
   skipOccurrenceAction,
 } from "@/server/actions/schedules";
 import { listFilledSlots, listSchedules, toRule, type FilledSlot, type Schedule } from "@/server/dal/schedules";
+import { listReminderSettings, listReminderStatuses } from "@/server/dal/reminder-settings";
 import { requireUser } from "@/server/dal/session";
 import { accountOptions } from "../konten/form-data";
+import { ReminderPanel } from "../reminder-panel";
 import { ScheduleForm, type ScheduleFormValues } from "./schedule-form";
 
 export const metadata: Metadata = { title: "Jadwal berulang | Montenku" };
@@ -158,6 +160,9 @@ export default async function SchedulesPage({ searchParams }: { searchParams: Pr
       ? { accountId: firstAccount.id, title: "", days: [], time: "", startDate: todayIn(CALENDAR_HOME_TIMEZONE), endDate: "" }
       : null;
   const rows = editing ? upcoming(editing, filled, true) : [];
+  const [reminderSettings, reminderStatuses] = editing
+    ? await Promise.all([listReminderSettings(user.id, { scheduleId: editing.id }), listReminderStatuses(user.id, { scheduleId: editing.id })])
+    : [[], []];
   // Editing a schedule on an archived account must still list that account.
   const formAccounts = editing ? await accountOptions(user.id, editing.account.id) : accounts;
 
@@ -221,6 +226,16 @@ export default async function SchedulesPage({ searchParams }: { searchParams: Pr
                 </>
               )}
             </section>
+
+            {editing ? (
+              <ReminderPanel
+                target={{ scheduleId: editing.id }}
+                settings={reminderSettings}
+                statuses={reminderStatuses}
+                timeZone={editing.account.timezone}
+                now={now}
+              />
+            ) : null}
 
             {editing ? (
               <section aria-labelledby="upcoming-title" className="rounded-xl border bg-card p-5 sm:p-6">

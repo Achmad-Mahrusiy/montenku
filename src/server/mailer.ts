@@ -25,8 +25,15 @@ export async function sendEmail(email: Email, idempotencyKey: string): Promise<v
   });
   if (response.ok) return;
 
-  // The docs list error names but not the JSON field names, so look for the name in the raw body.
+  // Error bodies look like {"message", "name", "statusCode"} (checked against Resend on 23 Nov 2026).
   const body = await response.text();
   if (response.status === 409 && body.includes("invalid_idempotent_request")) return;
-  throw new Error(`Resend ${response.status}: ${body.slice(0, 300)}`);
+  let detail = body.slice(0, 300);
+  try {
+    const parsed = JSON.parse(body) as { name?: unknown; message?: unknown };
+    if (typeof parsed.message === "string") detail = `${typeof parsed.name === "string" ? `${parsed.name}: ` : ""}${parsed.message}`;
+  } catch {
+    // Not JSON (e.g. a proxy error page): keep the raw text.
+  }
+  throw new Error(`Resend ${response.status} ${detail}`);
 }

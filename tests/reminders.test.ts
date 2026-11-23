@@ -5,7 +5,13 @@ import { closeDb, db } from "@/db";
 import { contentAccounts, contentItems, reminderSettings, reminders, user } from "@/db/schema";
 import { archiveContentAccount, createContentAccount, updateContentAccount } from "@/server/dal/content-accounts";
 import { createContentItem, deleteContentItem, updateContentItem } from "@/server/dal/content-items";
-import { addReminderSetting, listReminderSettings, removeReminderSetting } from "@/server/dal/reminder-settings";
+import {
+  addReminderSetting,
+  listReminderSettings,
+  listReminderStatuses,
+  removeReminderSetting,
+  retryFailedReminder,
+} from "@/server/dal/reminder-settings";
 import { deliver, reconcile, type Email, type ReminderDeps, type ReminderMessage } from "@/server/dal/reminders";
 import { clearException, createSchedule, fillSlot, setException } from "@/server/dal/schedules";
 
@@ -304,5 +310,39 @@ describe("isolasi pengaturan pengingat", () => {
     // And a setting must have exactly one target.
     await expect(db.insert(reminderSettings).values({ userId: alice.userId, offsetMinutes: 30 })).rejects.toThrow();
     expect(await db.$count(contentAccounts, eq(contentAccounts.userId, bob.userId))).toBe(1);
+  });
+});
+
+describe("Kirim ulang pengingat yang gagal", () => {
+  it("gagal 5x lalu dikirim ulang: kembali pending, terkirim sekali; status terlihat di daftar", async () => {
+    const f = fakes();
+    const { userId, itemId } = await setup();
+    await addReminderSetting(userId, { itemId }, 120);
+    await reconcile(f.deps, { now: DAY_BEFORE, userId });
+    const message = f.queued[0]!.message;
+
+    f.failNext(5);
+    for (let attempt = 1; attempt <= 5; attempt++) await deliver(f.deps, message, later(DUE, attempt)).catch(() => {});
+    expect((await listReminderStatuses(userId, { itemId }))[0]).toMatchObject({ status: "failed", lastError: "Resend 500" });
+
+    expect(await retryFailedReminder(userId, message.id)).toBe(true);
+    expect(await retryFailedReminder(userId, message.id)).toBe(false); // only a failed one can be retried
+    expect((await reconcile(f.deps, { now: later(DUE, 10), userId })).delivered).toBe(1);
+    expect(f.emails).toHaveLength(1);
+    expect((await listReminderStatuses(userId, { itemId }))[0]).toMatchObject({ status: "sent", lastError: null });
+  });
+
+  it("pengguna lain tidak bisa melihat atau mengirim ulang pengingat orang lain", async () => {
+    const f = fakes();
+    const alice = await setup();
+    const bob = await setup();
+    await addReminderSetting(alice.userId, { itemId: alice.itemId }, 120);
+    await reconcile(f.deps, { now: DAY_BEFORE, userId: alice.userId });
+    const id = f.queued[0]!.message.id;
+    await db.update(reminders).set({ status: "failed" }).where(eq(reminders.id, id));
+
+    expect(await listReminderStatuses(bob.userId, { itemId: alice.itemId })).toEqual([]);
+    expect(await retryFailedReminder(bob.userId, id)).toBe(false);
+    expect((await listReminderStatuses(alice.userId, { itemId: alice.itemId }))[0]?.status).toBe("failed");
   });
 });
