@@ -27,6 +27,15 @@ export function wallTimeToInstant(wallTime: string, timeZone: string): Date {
   return new Date(zoned.epochMilliseconds);
 }
 
+/** Short zone name as Indonesians read it: WIB, WITA, WIT, or e.g. GMT+9 / EST. Depends on the date (DST). */
+export function timezoneShortName(timeZone: string, at: Date): string {
+  return (
+    new Intl.DateTimeFormat("id-ID", { timeZone, timeZoneName: "short" })
+      .formatToParts(at)
+      .find((part) => part.type === "timeZoneName")?.value ?? timeZone
+  );
+}
+
 /** The instant shown as wall-clock time in `timeZone`, e.g. "2026-11-23T19:00". */
 export function instantToWallTime(instant: Date, timeZone: string): string {
   return Temporal.Instant.fromEpochMilliseconds(instant.getTime())

@@ -47,7 +47,7 @@ export async function saveContentAccountAction(
   const parsed = contentAccountSchema.safeParse(typed(formData));
   if (!parsed.success) return { fieldErrors: z.flattenError(parsed.error).fieldErrors, values: typed(formData) };
 
-  const limited = await checkLimit(limits.accountWriteByUser, user.id);
+  const limited = await checkLimit(limits.writeByUser, user.id);
   if (limited) return { error: limited, values: typed(formData) };
 
   const rawId = formData.get("id");

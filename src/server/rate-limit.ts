@@ -27,7 +27,8 @@ export const limits = {
   signInByIp: make("sign-in:ip", 20, "15 m"),
   signInByEmail: make("sign-in:email", 5, "15 m"),
   signUpByIp: make("sign-up:ip", 5, "1 h"),
-  accountWriteByUser: make("account-write:user", 30, "1 m"),
+  // One shared quota for saving content accounts and content items ("pembuatan item" in the brief).
+  writeByUser: make("write:user", 30, "1 m"),
 };
 
 /**

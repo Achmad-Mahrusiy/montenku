@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { instantToWallTime, isWallTime, wallTimeToInstant } from "@/lib/time";
+import { instantToWallTime, isWallTime, timezoneShortName, wallTimeToInstant } from "@/lib/time";
 
 describe("jam dinding <-> instant", () => {
   it("Asia/Jakarta (WIB, UTC+7, tanpa DST)", () => {
@@ -34,6 +34,17 @@ describe("jam dinding <-> instant", () => {
     for (const wall of ["2026-01-15T09:00", "2026-07-15T09:00"]) {
       expect(instantToWallTime(wallTimeToInstant(wall, "America/New_York"), "America/New_York")).toBe(wall);
     }
+  });
+});
+
+describe("timezoneShortName", () => {
+  it("memakai singkatan Indonesia dan mengikuti DST", () => {
+    const november = new Date("2026-11-23T12:00:00Z");
+    expect(timezoneShortName("Asia/Jakarta", november)).toBe("WIB");
+    expect(timezoneShortName("Asia/Makassar", november)).toBe("WITA");
+    expect(timezoneShortName("Asia/Jayapura", november)).toBe("WIT");
+    expect(timezoneShortName("America/New_York", november)).toBe("EST");
+    expect(timezoneShortName("America/New_York", new Date("2026-07-01T12:00:00Z"))).toBe("EDT");
   });
 });
 

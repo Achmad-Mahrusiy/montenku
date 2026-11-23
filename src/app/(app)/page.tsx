@@ -21,12 +21,17 @@ export default async function DashboardPage() {
           </Button>
         </section>
       ) : (
-        <p className="mt-2 text-muted-foreground">
-          Kamu mengelola {activeCount} akun konten aktif.{" "}
-          <Link href="/akun-konten" className="font-semibold text-foreground underline underline-offset-4">
-            Lihat akun konten
-          </Link>
-        </p>
+        <>
+          <p className="mt-2 text-muted-foreground">
+            Kamu mengelola {activeCount} akun konten aktif.{" "}
+            <Link href="/akun-konten" className="font-semibold text-foreground underline underline-offset-4">
+              Lihat akun konten
+            </Link>
+          </p>
+          <Button asChild className="mt-6">
+            <Link href="/konten/baru">Buat konten baru</Link>
+          </Button>
+        </>
       )}
     </main>
   );

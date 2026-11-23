@@ -339,7 +339,7 @@ Status: Usulan
 - Batas (sliding window, kunci di Redis berawalan `montenku:`):
   - Masuk: 20 per IP dan 5 per email per 15 menit.
   - Daftar: 5 per IP per jam.
-  - Simpan akun konten: 30 per pengguna per menit.
+  - Simpan akun konten dan item konten: 30 per pengguna per menit, satu kuota bersama.
   - Endpoint pemicu email belum ada; dibatasi saat dibuat.
 - Email disimpan sebagai hash SHA-256 di Redis, bukan teks asli.
 - `/api/auth/sign-in/email` dan `/api/auth/sign-up/email` ditutup lewat `disabledPaths` Better Auth (404). Panggilan `auth.api.*` dari Server Action tetap jalan, jadi satu-satunya jalan masuk adalah action yang dibatasi.
@@ -385,3 +385,16 @@ Status: Disetujui (22 Nov 2026, jawaban awal Fase 2)
 **Alasan.** Kreator menjadwalkan posting untuk jam penontonnya; "19:00 di akun Tokyo" lebih bermakna daripada "17:00 WIB". Tidak butuh pengaturan zona pengguna sebelum Fase 5. Kalau semua akun WIB, tampilannya sama persis dengan Figma.
 
 **Konsekuensi.** Dua item di akun berbeda zona yang tampil di jam yang sama di kalender belum tentu terjadi di momen yang sama. Deteksi bentrok (Fase 5) memang per akun, jadi tidak terpengaruh.
+
+---
+
+## D-023 Item konten dihapus permanen, dengan konfirmasi
+Status: Usulan
+
+**Konteks.** Akun konten diarsipkan (D-019), tapi layar Detail item di Figma punya tombol **Hapus konten**. Brief Fase 4 juga menyebut pengingat dibatalkan saat item dihapus.
+
+**Pilihan.** Item dihapus permanen beserta tenggat dan catatannya (`ON DELETE CASCADE`). Tombolnya membuka dialog konfirmasi (`<dialog>` bawaan browser: Escape menutup, fokus awal di **Batal**). Setelah dihapus, pengguna kembali ke dashboard; setelah kalender ada (Langkah 4), kembali ke kalender.
+
+**Alasan.** Item adalah satu konten, bukan wadah banyak data seperti akun konten, jadi arsip tidak sepadan dengan kerumitannya. Konfirmasi menahan salah klik.
+
+**Catatan teknis.** Field status dan akun di form sengaja *uncontrolled* (`defaultChecked`/`defaultValue`). Saat diuji, versi *controlled* meninggalkan nilai lama di DOM setelah React mereset form sesudah simpan berhasil, sehingga simpan berikutnya diam-diam mengirim status lama.
