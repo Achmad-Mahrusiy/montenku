@@ -11,12 +11,18 @@ const envSchema = z
     BETTER_AUTH_URL: z.url(),
     UPSTASH_REDIS_REST_URL: optional(z.url()),
     UPSTASH_REDIS_REST_TOKEN: optional(z.string()),
+    // Reminder emails (Fase 4). Without a verified domain Resend only delivers to the Resend account's own address.
+    RESEND_API_KEY: optional(z.string()),
+    EMAIL_FROM: z.preprocess((value) => (value === "" ? undefined : value), z.string().default("Montenku <onboarding@resend.dev>")),
+    // Vercel sends it as "Authorization: Bearer <CRON_SECRET>" to the cron and sweeper route.
+    CRON_SECRET: optional(z.string().min(16, "CRON_SECRET minimal 16 karakter")),
     VERCEL_ENV: optional(z.string()),
   })
   .superRefine((value, ctx) => {
-    // Rate limiting may be off on your laptop, never on the live site.
-    if (value.VERCEL_ENV === "production" && !(value.UPSTASH_REDIS_REST_URL && value.UPSTASH_REDIS_REST_TOKEN)) {
-      ctx.addIssue({ code: "custom", message: "UPSTASH_REDIS_REST_URL dan UPSTASH_REDIS_REST_TOKEN wajib diisi di production" });
+    // Rate limiting, email and the reminder cron may be off on your laptop, never on the live site.
+    if (value.VERCEL_ENV !== "production") return;
+    for (const key of ["UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN", "RESEND_API_KEY", "CRON_SECRET"] as const) {
+      if (!value[key]) ctx.addIssue({ code: "custom", path: [key], message: `${key} wajib diisi di production` });
     }
   });
 

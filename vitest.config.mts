@@ -12,7 +12,12 @@ export default defineConfig({
     environment: "node",
     globalSetup: ["./tests/helpers/global-setup.ts"],
     // Tests use a throwaway local Postgres started by global-setup, never your Supabase database.
-    env: { DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:55432/postgres" },
+    // Fake secrets for the cron route and mailer tests; Resend itself is never called (fetch is stubbed).
+    env: {
+      DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:55432/postgres",
+      CRON_SECRET: "test-cron-secret-0123456789",
+      RESEND_API_KEY: "re_test_key",
+    },
     // Test files share one database, so run them one at a time.
     fileParallelism: false,
     // Stopping Postgres on Windows can take a while on a busy laptop; the default 10s left it running once.

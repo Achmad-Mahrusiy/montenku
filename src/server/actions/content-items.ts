@@ -2,10 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import type { z } from "zod";
 import { contentItemIdSchema, contentItemSchema, deadlineStages } from "@/lib/validation/content-item";
 import { createContentItem, deleteContentItem, updateContentItem } from "@/server/dal/content-items";
 import { requireUser } from "@/server/dal/session";
+import { refreshReminders } from "@/server/reminder-jobs";
 import { checkLimit, limits } from "@/server/rate-limit";
 
 const formFields = [
@@ -53,6 +55,7 @@ function fieldErrorsOf(error: z.ZodError): ContentItemFormState["fieldErrors"] {
 
 export async function saveContentItemAction(_prev: ContentItemFormState, formData: FormData): Promise<ContentItemFormState> {
   const user = await requireUser();
+  after(() => refreshReminders(user.id));
   const values = readForm(formData);
   const parsed = contentItemSchema.safeParse({
     ...values,
@@ -88,6 +91,7 @@ export async function saveContentItemAction(_prev: ContentItemFormState, formDat
 
 export async function deleteContentItemAction(formData: FormData) {
   const user = await requireUser();
+  after(() => refreshReminders(user.id));
   const id = contentItemIdSchema.safeParse(formData.get("id"));
   if (id.success) await deleteContentItem(user.id, id.data);
   redirect("/kalender");

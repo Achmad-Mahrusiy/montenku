@@ -503,3 +503,20 @@ Status: Disetujui sebagian (23 Nov 2026: Vercel ditunda ke Fase 7, Resend mode u
 **Alasan.** Mengikuti desain yang sudah disetujui. Semua test wajib D-007 ada di `tests/reminders.test.ts`; uji mutasi (syarat `status = 'pending'` dihapus sementara) membuat 3 test gagal, jadi test-nya benar-benar menjaga.
 
 **Catatan dari dokumentasi Vercel.** Pesan push dikirim kembali ke deployment yang mengirimnya. Pengingat yang diantrekan sebelum deploy baru dijalankan oleh kode lama, dan berhenti jika deployment lama dihapus; penyapu tetap mengirimnya (D-005).
+
+---
+
+## D-030 Kabel pengingat: Resend lewat fetch, queue hanya di Vercel, satu route untuk cron dan penyapu
+Status: Usulan
+
+**Konteks.** Fase 4 Langkah 2 menyambungkan mesin pengingat (D-029) ke Resend, Vercel Queues, dan penjadwal Vercel. Dokumentasi resmi dibaca 23 Nov 2026: Vercel Cron Jobs (berlabel *legacy*, digantikan Schedules), Vercel Schedules (Beta), Resend send-email, idempotency-keys, dan errors.
+
+**Pilihan.**
+- **Resend lewat `fetch`** (`src/server/mailer.ts`), tanpa SDK: satu POST ke `https://api.resend.com/emails` dengan header `Idempotency-Key`. Respons **409 `invalid_idempotent_request`** (kunci sama, isi berbeda, misalnya judul diubah di antara dua percobaan) dianggap sudah terkirim, supaya pengingat yang sudah sampai tidak berakhir "Gagal". Nama field JSON error tidak didokumentasikan, jadi yang dicari adalah teks nama error di isi respons. Tanpa `RESEND_API_KEY`, pengiriman gagal dengan pesan yang jelas, tidak pura-pura terkirim.
+- **Semua kode queue di `src/server/reminder-jobs.ts`** (D-010): `send()` ke topik `reminders` dengan delay, retensi, dan kunci idempotency dari D-006. Konsumen `src/app/api/queues/reminders/route.ts` memakai `handleCallback`, dengan backoff 10 detik sampai 5 menit dan berhenti setelah 6 pengiriman.
+- **Queue hanya aktif di Vercel** (`process.env.VERCEL`). Di laptop tidak ada emulator, jadi pengiriman ke queue dilewati dan pengingat dikirim oleh route cron saat jatuh tempo. Ditandai *shortcut* di kode; dicek ulang di Fase 7.
+- **Satu route `/api/cron/reconcile`** (GET, `Authorization: Bearer <CRON_SECRET>`, dibandingkan *constant-time*) dipanggil oleh Cron Job harian `0 1 * * *` (08.00 WIB) **dan** Schedule `*/15 * * * *` (penyapu), sesuai D-009.
+- Setiap aksi yang mengubah item, jadwal, atau akun menjalankan `reconcile()` untuk pengguna itu lewat `after()` dari Next.js, yaitu setelah respons terkirim, sehingga pengguna tidak menunggu dan kegagalannya tidak menggagalkan aksi.
+- `RESEND_API_KEY` dan `CRON_SECRET` wajib di production; `EMAIL_FROM` bawaan `Montenku <onboarding@resend.dev>`.
+
+**Belum terverifikasi sampai deploy (Fase 7).** Kunci `functions` di `vercel.json` memakai path `src/app/...` (contoh di dokumentasi tanpa folder `src`), dan pengiriman queue sungguhan. Keduanya tidak bisa diuji tanpa proyek Vercel.

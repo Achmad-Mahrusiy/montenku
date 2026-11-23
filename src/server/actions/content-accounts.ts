@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { z } from "zod";
 import { contentAccountIdSchema, contentAccountSchema } from "@/lib/validation/content-account";
 import {
@@ -11,6 +12,7 @@ import {
   updateContentAccount,
 } from "@/server/dal/content-accounts";
 import { requireUser } from "@/server/dal/session";
+import { refreshReminders } from "@/server/reminder-jobs";
 import { checkLimit, limits } from "@/server/rate-limit";
 
 const fields = ["name", "platform", "handle", "color", "timezone"] as const;
@@ -44,6 +46,7 @@ export async function saveContentAccountAction(
   formData: FormData,
 ): Promise<ContentAccountFormState> {
   const user = await requireUser();
+  after(() => refreshReminders(user.id));
   const parsed = contentAccountSchema.safeParse(typed(formData));
   if (!parsed.success) return { fieldErrors: z.flattenError(parsed.error).fieldErrors, values: typed(formData) };
 
@@ -71,6 +74,7 @@ export async function saveContentAccountAction(
 // Archive and restore are reversible, so they need no confirmation step. An unknown id just does nothing.
 export async function archiveContentAccountAction(formData: FormData) {
   const user = await requireUser();
+  after(() => refreshReminders(user.id));
   const id = contentAccountIdSchema.safeParse(formData.get("id"));
   if (id.success) await archiveContentAccount(user.id, id.data);
   done();
@@ -78,6 +82,7 @@ export async function archiveContentAccountAction(formData: FormData) {
 
 export async function restoreContentAccountAction(formData: FormData) {
   const user = await requireUser();
+  after(() => refreshReminders(user.id));
   const id = contentAccountIdSchema.safeParse(formData.get("id"));
   if (id.success) await restoreContentAccount(user.id, id.data);
   done();

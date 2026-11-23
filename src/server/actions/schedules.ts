@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { z } from "zod";
 import { occurrenceKeySchema, scheduleIdSchema, scheduleSchema, wallTimeSchema } from "@/lib/validation/schedule";
 import {
@@ -13,6 +14,7 @@ import {
   updateSchedule,
 } from "@/server/dal/schedules";
 import { requireUser } from "@/server/dal/session";
+import { refreshReminders } from "@/server/reminder-jobs";
 import { checkLimit, limits } from "@/server/rate-limit";
 
 const fields = ["accountId", "title", "time", "startDate", "endDate"] as const;
@@ -38,6 +40,7 @@ function readForm(formData: FormData) {
 
 export async function saveScheduleAction(_prev: ScheduleFormState, formData: FormData): Promise<ScheduleFormState> {
   const user = await requireUser();
+  after(() => refreshReminders(user.id));
   const values = readForm(formData);
   const parsed = scheduleSchema.safeParse(values);
   if (!parsed.success) return { fieldErrors: z.flattenError(parsed.error).fieldErrors, values };
@@ -69,6 +72,7 @@ export async function saveScheduleAction(_prev: ScheduleFormState, formData: For
 
 export async function deleteScheduleAction(formData: FormData) {
   const user = await requireUser();
+  after(() => refreshReminders(user.id));
   const id = scheduleIdSchema.safeParse(formData.get("id"));
   if (id.success) await deleteSchedule(user.id, id.data);
   revalidatePath("/", "layout");
@@ -81,6 +85,7 @@ const readSlot = (formData: FormData) => slot.safeParse({ scheduleId: formData.g
 
 export async function skipOccurrenceAction(formData: FormData) {
   const user = await requireUser();
+  after(() => refreshReminders(user.id));
   const s = readSlot(formData);
   if (s.success) await setException(user.id, s.data.scheduleId, s.data.key, { kind: "skip" });
   revalidatePath("/jadwal");
@@ -88,6 +93,7 @@ export async function skipOccurrenceAction(formData: FormData) {
 
 export async function moveOccurrenceAction(formData: FormData) {
   const user = await requireUser();
+  after(() => refreshReminders(user.id));
   const s = readSlot(formData);
   const to = wallTimeSchema.safeParse(formData.get("movedTo"));
   if (s.success && to.success) await setException(user.id, s.data.scheduleId, s.data.key, { kind: "move", movedToLocal: to.data });
@@ -96,6 +102,7 @@ export async function moveOccurrenceAction(formData: FormData) {
 
 export async function restoreOccurrenceAction(formData: FormData) {
   const user = await requireUser();
+  after(() => refreshReminders(user.id));
   const s = readSlot(formData);
   if (s.success) await clearException(user.id, s.data.scheduleId, s.data.key);
   revalidatePath("/jadwal");
@@ -104,6 +111,7 @@ export async function restoreOccurrenceAction(formData: FormData) {
 /** "Isi konten": creates (or finds) the item for this slot and opens it. */
 export async function fillSlotAction(formData: FormData) {
   const user = await requireUser();
+  after(() => refreshReminders(user.id));
   const s = readSlot(formData);
   if (!s.success) return;
   // Creates an item, so it shares the write quota; when over it, the button just does nothing this minute.
