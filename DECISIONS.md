@@ -467,3 +467,19 @@ Status: Usulan
 - Bagian "Pengingat untuk tiap kemunculan" dari Figma menunggu Fase 4.
 
 **Alasan.** Mengikuti desain dan pola yang sudah ada di app, dengan kode client sesedikit mungkin.
+
+---
+
+## D-028 Slot jadwal berulang di kalender
+Status: Usulan
+
+**Konteks.** Figma menampilkan slot jadwal yang belum diisi sebagai chip bergaris putus-putus "Slot kosong", dengan keterangan di atas kalender.
+
+**Pilihan.**
+- Kalender (Bulan, Minggu, Daftar) menggabungkan item konten dengan slot kosong dari jadwal berulang, dihitung saat halaman dibuka (`scheduleSlots()` di `src/lib/calendar.ts`, memakai mesin kemunculan yang sama dengan halaman Jadwal).
+- Slot yang sudah diisi tidak tampil, karena itemnya sudah tampil sendiri. Slot yang dilewati tidak tampil; slot yang digeser tampil di jam barunya. Jadwal di akun yang diarsipkan tidak menghasilkan slot.
+- Slot bergaris putus-putus dengan warna akunnya; di HP titiknya berongga. Label pembaca layar menghitung konten dan slot kosong secara terpisah.
+- Klik slot membuka jadwalnya (`/jadwal?ubah=<id>`), bukan langsung membuat item, supaya tidak ada item yang terbuat karena salah klik. Di sana ada tombol "Isi konten".
+- Filter per akun berlaku juga untuk slot.
+
+**Alasan.** Satu sumber perhitungan untuk halaman Jadwal dan kalender, dan kalender tidak pernah menampilkan satu posting dua kali.

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
-import { CALENDAR_HOME_TIMEZONE, placeOnCalendar } from "@/lib/calendar";
+import { CALENDAR_HOME_TIMEZONE, placeOnCalendar, scheduleSlots } from "@/lib/calendar";
 import {
   addDays,
   addMonths,
@@ -17,6 +17,7 @@ import {
 import { cn } from "@/lib/utils";
 import { listContentAccounts } from "@/server/dal/content-accounts";
 import { listContentItems } from "@/server/dal/content-items";
+import { listFilledSlots, listSchedules } from "@/server/dal/schedules";
 import { requireUser } from "@/server/dal/session";
 import { ListView, MonthView, WeekView, dayNumber } from "./views";
 
@@ -76,14 +77,20 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   const first = shown[0] ?? date;
   const last = shown.at(-1) ?? date;
 
-  const [accounts, items] = await Promise.all([
+  const range = utcRangeCovering(first, last);
+  const accountIds = accountId ? [accountId] : undefined;
+  const [accounts, items, schedules] = await Promise.all([
     listContentAccounts(user.id),
     // The DAL filters by user, so an account id from someone else simply returns nothing.
-    listContentItems(user.id, { ...utcRangeCovering(first, last), accountIds: accountId ? [accountId] : undefined }),
+    listContentItems(user.id, { ...range, accountIds }),
+    listSchedules(user.id, accountIds),
   ]);
-  const days = placeOnCalendar(items);
+  const filled = await listFilledSlots(user.id, schedules.map((s) => s.id));
+  const days = placeOnCalendar([...items, ...scheduleSlots(schedules, filled, range.from, range.to)]);
   // The query range is padded for every timezone; only count what actually lands on screen.
-  const visibleCount = shown.reduce((n, d) => n + (days.get(d)?.length ?? 0), 0);
+  const onScreen = shown.flatMap((d) => days.get(d) ?? []);
+  const visibleCount = onScreen.length;
+  const hasSlots = onScreen.some((e) => e.slotOf);
   const activeAccounts = accounts.filter((a) => !a.archivedAt);
 
   const step = view === "minggu" ? { prev: addDays(date, -7), next: addDays(date, 7), unit: "Minggu" } : { prev: addMonths(date, -1), next: addMonths(date, 1), unit: "Bulan" };
@@ -164,6 +171,16 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
           );
         })}
       </nav>
+
+      {hasSlots ? (
+        // Legend from the Figma calendar: what a dashed entry means.
+        <p className="mt-4 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+          <span aria-hidden="true" className="rounded-md border border-dashed border-foreground/50 bg-card px-2 py-0.5 text-xs">
+            Slot kosong
+          </span>
+          Garis putus = slot jadwal berulang yang belum diisi konten.
+        </p>
+      ) : null}
 
       {visibleCount === 0 ? (
         <p role="status" className="mt-5 rounded-lg border border-dashed bg-card p-4 text-sm text-muted-foreground">

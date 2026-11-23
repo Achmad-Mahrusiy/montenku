@@ -14,15 +14,19 @@ export const dayNumber = (date: string) => Number(date.slice(8, 10));
 
 type Days = Map<string, CalendarEntry[]>;
 
-/** One item: account color dot, time in its account's zone, title. Links to the item page. */
+/** A light tint of the account color for items; a dashed outline in that color for empty schedule slots (Figma). */
+const entryStyle = (entry: CalendarEntry) =>
+  entry.slotOf ? { borderColor: entry.color, background: "var(--card)" } : { background: `color-mix(in srgb, ${entry.color} 14%, var(--card))` };
+
+/** One entry: account color dot, time in its account's zone, title. Links to the item, or to the schedule for a slot. */
 function EntryChip({ entry, className }: { entry: CalendarEntry; className?: string }) {
   return (
     <Link
-      href={`/konten/${entry.id}`}
-      // A light tint of the account color, so accounts are told apart at a glance; the name is always there too.
-      style={{ background: `color-mix(in srgb, ${entry.color} 14%, var(--card))` }}
+      href={entry.href}
+      style={entryStyle(entry)}
       className={cn(
         "flex min-h-7 min-w-0 items-center gap-1.5 rounded-md px-2 py-1 text-xs outline-none hover:brightness-95 focus-visible:ring-3 focus-visible:ring-ring/50",
+        entry.slotOf && "border border-dashed",
         className,
       )}
     >
@@ -32,7 +36,9 @@ function EntryChip({ entry, className }: { entry: CalendarEntry; className?: str
         {entry.zoneLabel ? ` ${entry.zoneLabel}` : null}
       </span>
       <span className="truncate font-semibold">{entry.title}</span>
-      <span className="sr-only">, {entry.accountName}</span>
+      <span className="sr-only">
+        {entry.slotOf ? `, jadwal ${entry.slotOf}` : null}, {entry.accountName}
+      </span>
     </Link>
   );
 }
@@ -94,12 +100,19 @@ export function MonthView({
                   <Link
                     href={dayHref(date)}
                     className="flex h-full flex-col items-start gap-1 rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50 sm:hidden"
-                    aria-label={`${dayHeading.format(asUtc(date))}, ${entries.length} konten`}
+                    aria-label={`${dayHeading.format(asUtc(date))}, ${entries.filter((e) => !e.slotOf).length} konten${
+                      entries.some((e) => e.slotOf) ? `, ${entries.filter((e) => e.slotOf).length} slot kosong` : ""
+                    }`}
                   >
                     <TodayNumber date={date} today={today} className={cn(!inMonth && "text-muted-foreground")} />
                     <span aria-hidden="true" className="flex flex-wrap gap-1 px-1">
                       {entries.slice(0, 4).map((e) => (
-                        <span key={e.id} className="size-2 rounded-full" style={{ background: e.color }} />
+                        // Hollow dot for an empty slot, filled for real content.
+                        <span
+                          key={e.id}
+                          className="size-2 rounded-full border"
+                          style={e.slotOf ? { borderColor: e.color } : { background: e.color, borderColor: e.color }}
+                        />
                       ))}
                     </span>
                   </Link>
@@ -191,8 +204,12 @@ export function ListView({ dates, days, today }: { dates: string[]; days: Days; 
             {(days.get(date) ?? []).map((entry) => (
               <li key={entry.id}>
                 <Link
-                  href={`/konten/${entry.id}`}
-                  className="flex min-h-14 items-center gap-3 rounded-xl border bg-card px-4 py-3 outline-none hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50"
+                  href={entry.href}
+                  style={entry.slotOf ? { borderColor: entry.color } : undefined}
+                  className={cn(
+                    "flex min-h-14 items-center gap-3 rounded-xl border bg-card px-4 py-3 outline-none hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50",
+                    entry.slotOf && "border-dashed",
+                  )}
                 >
                   <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ background: entry.color }} />
                   <span className="w-14 shrink-0 text-sm font-semibold tabular-nums">
@@ -201,7 +218,10 @@ export function ListView({ dates, days, today }: { dates: string[]; days: Days; 
                   </span>
                   <span className="min-w-0">
                     <span className="block font-semibold break-words">{entry.title}</span>
-                    <span className="block text-sm text-muted-foreground">{entry.accountName}</span>
+                    <span className="block text-sm text-muted-foreground">
+                      {entry.slotOf ? `Jadwal ${entry.slotOf} · ` : null}
+                      {entry.accountName}
+                    </span>
                   </span>
                 </Link>
               </li>
