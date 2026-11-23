@@ -398,3 +398,18 @@ Status: Usulan
 **Alasan.** Item adalah satu konten, bukan wadah banyak data seperti akun konten, jadi arsip tidak sepadan dengan kerumitannya. Konfirmasi menahan salah klik.
 
 **Catatan teknis.** Field status dan akun di form sengaja *uncontrolled* (`defaultChecked`/`defaultValue`). Saat diuji, versi *controlled* meninggalkan nilai lama di DOM setelah React mereset form sesudah simpan berhasil, sehingga simpan berikutnya diam-diam mengirim status lama.
+
+---
+
+## D-024 Catatan markdown: `react-markdown`, tanpa HTML mentah
+Status: Usulan
+
+**Konteks.** Brief: catatan markdown yang tertaut ke item. Catatan adalah teks dari pengguna yang ditampilkan kembali di halaman, jadi berisiko XSS kalau HTML di dalamnya ikut dijalankan.
+
+**Opsi.** (a) `react-markdown`: mengubah markdown langsung jadi elemen React, tanpa `dangerouslySetInnerHTML`. (b) `marked` + sanitizer (mis. DOMPurify): menghasilkan string HTML yang harus dibersihkan dulu.
+
+**Pilihan.** (a) `react-markdown@10.1.0` dengan `skipHtml`: tag HTML di dalam catatan dibuang, dan tautan `javascript:`/`data:` dikosongkan oleh `urlTransform` bawaan. Tautan biasa dibuka di tab baru dengan `rel="noopener noreferrer nofollow"`. Komponen yang sama dipakai untuk tampilan di server dan pratinjau di browser. Test di `tests/markdown.test.tsx` mengunci perilaku ini.
+
+**Alasan.** Tidak ada string HTML yang perlu dipercaya, jadi tidak ada sanitizer yang bisa lupa dipasang. Tanpa plugin GFM (tabel, checklist) karena belum dibutuhkan; bisa ditambah nanti.
+
+**Tata letak.** Panel Catatan ada di kolom kanan mulai layar 1280px (xl). Di 1024px kolom form terlalu sempit di samping sidebar, jadi panel turun ke bawah form; baris Akun/Tanggal/Jam memakai container query supaya jadi tiga kolom hanya kalau kartunya cukup lebar.

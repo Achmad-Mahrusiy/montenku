@@ -22,6 +22,8 @@ type Props = {
   heading: ReactNode;
   // Rendered next to the save button (delete, on the detail page). Must not be a form inside this form.
   extraAction?: ReactNode;
+  // Right column on desktop, below the form on phones (the notes panel). Outside the <form>, so it can hold its own forms.
+  aside?: ReactNode;
 };
 
 const textareaClass =
@@ -47,7 +49,7 @@ function dueLabel(dueAt: number | undefined, done: boolean, now: number): { text
   return null;
 }
 
-export function ItemForm({ itemId, initial, accounts, deadlines, heading, extraAction }: Props) {
+export function ItemForm({ itemId, initial, accounts, deadlines, heading, extraAction, aside }: Props) {
   const [state, formAction, pending] = useActionState(saveContentItemAction, {} satisfies ContentItemFormState);
   const values = { ...initial, ...state.values };
   const errors = state.fieldErrors ?? {};
@@ -77,7 +79,9 @@ export function ItemForm({ itemId, initial, accounts, deadlines, heading, extraA
         {saveButton}
       </div>
     </div>
-    <form id="item-form" action={formAction} noValidate className="mt-6 grid gap-6">
+    {/* Side column only from xl: at lg (1024px) the sidebar leaves too little room for two columns. */}
+    <div className={cn("mt-6 grid gap-6 xl:items-start", aside && "xl:grid-cols-[minmax(0,1fr)_400px]")}>
+    <form id="item-form" action={formAction} noValidate className="grid min-w-0 gap-6">
       {itemId ? <input type="hidden" name="id" value={itemId} /> : null}
       {state.error ? (
         <p role="alert" className="rounded-lg border border-destructive/30 bg-card p-3 text-sm text-destructive">
@@ -90,7 +94,7 @@ export function ItemForm({ itemId, initial, accounts, deadlines, heading, extraA
         </p>
       ) : null}
 
-      <section aria-labelledby="info-title" className="grid gap-5 rounded-xl border bg-card p-5 sm:p-6">
+      <section aria-labelledby="info-title" className="@container grid gap-5 rounded-xl border bg-card p-5 sm:p-6">
         <h2 id="info-title" className="font-heading text-xl font-bold">
           Info konten
         </h2>
@@ -115,7 +119,8 @@ export function ItemForm({ itemId, initial, accounts, deadlines, heading, extraA
           <FieldError id="description-error" errors={errors.description} />
         </div>
 
-        <div className="grid gap-5 sm:grid-cols-3">
+        {/* Container query: three columns only when the card itself is wide enough, wherever it sits. */}
+        <div className="grid gap-5 @lg:grid-cols-3">
           <div className="grid content-start gap-2">
             <Label htmlFor="accountId">Akun konten</Label>
             <select
@@ -245,6 +250,8 @@ export function ItemForm({ itemId, initial, accounts, deadlines, heading, extraA
       </section>
 
     </form>
+    {aside}
+    </div>
     {/* Phones: the same actions at the end of the form, as in the Figma mobile action bar. */}
     <div className="mt-6 flex gap-3 lg:hidden">
       {extraAction}

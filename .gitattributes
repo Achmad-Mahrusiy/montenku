@@ -1,0 +1,3 @@
+# Use LF line endings everywhere (repo, Windows working copy, CI, Vercel).
+# Git detects binary files (images, fonts) on its own and leaves them alone.
+* text=auto eol=lf

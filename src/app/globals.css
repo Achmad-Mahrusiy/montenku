@@ -142,3 +142,39 @@
         @apply font-sans;
     }
 }
+/* Rendered markdown notes (src/components/markdown.tsx). Small and readable, in the app's own type. */
+@layer components {
+    .markdown {
+        @apply text-sm leading-relaxed break-words;
+    }
+    .markdown > * + * {
+        @apply mt-2;
+    }
+    .markdown :is(h1, h2, h3, h4) {
+        @apply font-heading font-bold;
+    }
+    .markdown h1 {
+        @apply text-lg;
+    }
+    .markdown :is(h2, h3, h4) {
+        @apply text-base;
+    }
+    .markdown ul {
+        @apply list-disc pl-5;
+    }
+    .markdown ol {
+        @apply list-decimal pl-5;
+    }
+    .markdown a {
+        @apply font-semibold underline underline-offset-4;
+    }
+    .markdown code {
+        @apply rounded bg-muted px-1 py-0.5 text-[0.9em];
+    }
+    .markdown pre {
+        @apply overflow-x-auto rounded-lg bg-muted p-3;
+    }
+    .markdown blockquote {
+        @apply border-l-2 pl-3 text-muted-foreground;
+    }
+}
