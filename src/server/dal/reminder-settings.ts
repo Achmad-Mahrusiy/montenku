@@ -1,0 +1,47 @@
+import { and, asc, eq } from "drizzle-orm";
+import { db } from "@/db";
+import { contentItems, reminderSettings, schedules } from "@/db/schema";
+
+// Which reminders a user wants: "2 hours before" on one item, or on every occurrence of a schedule.
+// Every query filters by the owner's userId (D-008); the composite foreign keys refuse someone else's target too.
+
+export type ReminderTarget = { itemId: string } | { scheduleId: string };
+export type ReminderSetting = { id: string; offsetMinutes: number };
+
+const targetColumn = (target: ReminderTarget) =>
+  "itemId" in target ? eq(reminderSettings.itemId, target.itemId) : eq(reminderSettings.scheduleId, target.scheduleId);
+
+async function ownsTarget(userId: string, target: ReminderTarget): Promise<boolean> {
+  const [row] =
+    "itemId" in target
+      ? await db.select({ id: contentItems.id }).from(contentItems).where(and(eq(contentItems.id, target.itemId), eq(contentItems.userId, userId)))
+      : await db.select({ id: schedules.id }).from(schedules).where(and(eq(schedules.id, target.scheduleId), eq(schedules.userId, userId)));
+  return Boolean(row);
+}
+
+export async function listReminderSettings(userId: string, target: ReminderTarget): Promise<ReminderSetting[]> {
+  return db
+    .select({ id: reminderSettings.id, offsetMinutes: reminderSettings.offsetMinutes })
+    .from(reminderSettings)
+    .where(and(eq(reminderSettings.userId, userId), targetColumn(target)))
+    .orderBy(asc(reminderSettings.offsetMinutes));
+}
+
+/** False when the item or schedule is not the user's. Adding an offset that already exists is a no-op. */
+export async function addReminderSetting(userId: string, target: ReminderTarget, offsetMinutes: number): Promise<boolean> {
+  if (!(await ownsTarget(userId, target))) return false;
+  await db
+    .insert(reminderSettings)
+    .values({ userId, offsetMinutes, ...target })
+    .onConflictDoNothing();
+  return true;
+}
+
+/** Its reminders go with it (cascade); a queue message for one of them then finds no row and does nothing. */
+export async function removeReminderSetting(userId: string, id: string): Promise<boolean> {
+  const rows = await db
+    .delete(reminderSettings)
+    .where(and(eq(reminderSettings.id, id), eq(reminderSettings.userId, userId)))
+    .returning({ id: reminderSettings.id });
+  return rows.length > 0;
+}

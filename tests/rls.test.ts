@@ -23,6 +23,8 @@ describe("RLS deny-all di schema public", () => {
         "notes",
         "schedules",
         "schedule_exceptions",
+        "reminder_settings",
+        "reminders",
       ]),
     );
   });

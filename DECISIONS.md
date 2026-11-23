@@ -483,3 +483,23 @@ Status: Usulan
 - Filter per akun berlaku juga untuk slot.
 
 **Alasan.** Satu sumber perhitungan untuk halaman Jadwal dan kalender, dan kalender tidak pernah menampilkan satu posting dua kali.
+
+---
+
+## D-029 Mesin pengingat: implementasi D-005 sampai D-007
+Status: Disetujui sebagian (23 Nov 2026: Vercel ditunda ke Fase 7, Resend mode uji, tombol "Kirim ulang" ikut dibuat); sisanya Usulan
+
+**Konteks.** Fase 4 Langkah 1 membangun inti pengingat sesuai desain Fase 0. Dokumentasi resmi Vercel Queues dibaca 23 Nov 2026 (`/docs/queues`, quickstart, sdk, concepts, pricing, api): `send(topic, payload, { delaySeconds, retentionSeconds, idempotencyKey })`, konsumen `handleCallback`, pengiriman at-least-once, tidak ada pembatalan pesan, tersedia Beta di Hobby (1 juta operasi). Menjalankannya di laptop butuh `vercel link` + `vercel env pull` (OIDC); tidak ada emulator lokal.
+
+**Pilihan.**
+- `reminder_settings`: offset (0 sampai 10.080 menit) pada **tepat satu** target, item atau jadwal. Tanpa `account_id` (diambil dari item atau jadwal, jadi tidak bisa basi). Offset yang sama tidak bisa dipasang dua kali.
+- `reminders`: satu baris per (pengaturan, kemunculan), unik (kunci DB dari D-006). `occurrence_key = 'once'` untuk item tunggal.
+- `reconcile({ now, userId? })` di `src/server/dal/reminders.ts`, lima langkah: materialisasi baris dalam 48 jam, batalkan yang tidak diinginkan lagi, pulihkan `sending` yang lewat lease 5 menit, kirim langsung yang sudah jatuh tempo, antrekan yang belum diantrekan pada `send_at` sekarang.
+- `deliver()`: klaim bersyarat `pending -> sending`, kirim dengan kunci Resend `reminder:id:send_at`, tandai `sent`. Gagal: `pending` lagi dengan `attempts+1` lalu error dilempar (queue mengulang); percobaan ke-5 jadi `failed`.
+- Jam, queue, dan pengirim email adalah parameter (`ReminderDeps`), jadi semua test memakai jam palsu dan tiruan (brief Fase 4).
+- Pengingat jadwal: satu per kemunculan; slot yang sudah diisi memakai jam dan judul item pengisinya. Akun yang diarsipkan tidak mendapat pengingat.
+- Preset offset di UI: tepat waktu, 30 menit, 1 jam, 2 jam, H-1, H-3.
+
+**Alasan.** Mengikuti desain yang sudah disetujui. Semua test wajib D-007 ada di `tests/reminders.test.ts`; uji mutasi (syarat `status = 'pending'` dihapus sementara) membuat 3 test gagal, jadi test-nya benar-benar menjaga.
+
+**Catatan dari dokumentasi Vercel.** Pesan push dikirim kembali ke deployment yang mengirimnya. Pengingat yang diantrekan sebelum deploy baru dijalankan oleh kode lama, dan berhenti jika deployment lama dihapus; penyapu tetap mengirimnya (D-005).
