@@ -7,14 +7,17 @@ import { ItemForm } from "../item-form";
 
 export const metadata: Metadata = { title: "Buat konten baru | Montenku" };
 
-export default async function NewItemPage() {
+export default async function NewItemPage({ searchParams }: { searchParams: Promise<{ akun?: string | string[] }> }) {
   const user = await requireUser();
   const accounts = await accountOptions(user.id);
+  // From a calendar filtered to one account (?akun=<id>): start with that account picked, if it is one of yours.
+  const { akun } = await searchParams;
+  const preset = accounts.find((a) => a.id === akun) ?? accounts[0];
   const heading = <h1 className="font-heading text-3xl font-bold">Buat konten baru</h1>;
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:py-10">
-      {accounts.length === 0 || !accounts[0] ? (
+      {!preset ? (
         <>
           {heading}
           <section className="mt-6 rounded-xl border border-dashed bg-card p-6">
@@ -26,7 +29,7 @@ export default async function NewItemPage() {
           </section>
         </>
       ) : (
-        <ItemForm heading={heading} initial={emptyValues(accounts[0].id)} accounts={accounts} deadlines={savedDeadlines()} />
+        <ItemForm heading={heading} initial={emptyValues(preset.id)} accounts={accounts} deadlines={savedDeadlines()} />
       )}
     </main>
   );

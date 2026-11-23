@@ -413,3 +413,22 @@ Status: Usulan
 **Alasan.** Tidak ada string HTML yang perlu dipercaya, jadi tidak ada sanitizer yang bisa lupa dipasang. Tanpa plugin GFM (tabel, checklist) karena belum dibutuhkan; bisa ditambah nanti.
 
 **Tata letak.** Panel Catatan ada di kolom kanan mulai layar 1280px (xl). Di 1024px kolom form terlalu sempit di samping sidebar, jadi panel turun ke bawah form; baris Akun/Tanggal/Jam memakai container query supaya jadi tiga kolom hanya kalau kartunya cukup lebar.
+
+---
+
+## D-025 Kalender: dirender di server, keadaan di URL, "hari ini" sementara memakai WIB
+Status: Usulan
+
+**Konteks.** Fase 2 meminta kalender Bulan, Minggu, dan Daftar dengan tampilan "Semua akun" dan filter per akun.
+
+**Pilihan.**
+- Tampilan, tanggal, dan filter disimpan di URL: `/kalender?tampilan=bulan|minggu|daftar&tanggal=YYYY-MM-DD&akun=<id>`. Nilai yang tidak valid kembali ke bawaan (Bulan, hari ini, Semua akun), bukan error.
+- Ketiga tampilan adalah *server component*; semua tombol adalah tautan biasa. Tidak ada JavaScript tambahan di browser.
+- Minggu dimulai hari Senin, seperti di Figma. Daftar menampilkan bulan yang dipilih, hanya hari yang punya konten.
+- Item ditaruh di tanggal dan jam **zona akunnya** (D-022). Database diquery dengan rentang UTC yang dilebarkan untuk semua zona (−12 sampai +14 jam), lalu `placeOnCalendar()` menaruh tiap item ke harinya. Item di akun yang zonanya bukan WIB diberi label zona, mis. "19:00 GMT+9".
+- Di HP: Bulan menampilkan titik warna per hari, dan seluruh kotak tanggal menjadi tautan ke Daftar hari itu. Minggu bisa digeser ke samping di dalam kotaknya sendiri; halaman tidak pernah meluber.
+- Filter per akun memilih satu akun (atau Semua). Akun milik orang lain di URL tidak menampilkan apa pun, karena DAL tetap memfilter `user_id`.
+
+**Batasan sementara.** "Hari ini" dan label zona kolom Minggu memakai Asia/Jakarta untuk semua pengguna (`CALENDAR_HOME_TIMEZONE`). Diganti dengan `user_settings.timezone` saat Pengaturan dibuat di Fase 5.
+
+**Alasan.** URL membuat tampilan bisa di-refresh, ditandai, dan dibagikan tanpa state di browser. Render di server membuat halaman cepat dan tetap berfungsi walau JavaScript belum termuat.

@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { instantToWallTime, isWallTime, timezoneShortName, wallTimeToInstant } from "@/lib/time";
+import {
+  addDays,
+  addMonths,
+  instantToWallTime,
+  isPlainDate,
+  isWallTime,
+  monthGrid,
+  startOfWeek,
+  timezoneShortName,
+  todayIn,
+  utcRangeCovering,
+  wallTimeToInstant,
+} from "@/lib/time";
 
 describe("jam dinding <-> instant", () => {
   it("Asia/Jakarta (WIB, UTC+7, tanpa DST)", () => {
@@ -61,5 +73,47 @@ describe("isWallTime", () => {
 
   it("wallTimeToInstant menolak input yang tidak valid", () => {
     expect(() => wallTimeToInstant("2026-02-30T10:00", "Asia/Jakarta")).toThrow(RangeError);
+  });
+});
+
+describe("tanggal kalender", () => {
+  it("grid November 2026 mulai Senin 26 Okt dan berakhir Minggu 6 Des (seperti Figma)", () => {
+    const grid = monthGrid("2026-11-23");
+    expect(grid).toHaveLength(6);
+    expect(grid[0]?.[0]).toBe("2026-10-26");
+    expect(grid.at(-1)?.at(-1)).toBe("2026-12-06");
+    expect(grid.every((week) => week.length === 7)).toBe(true);
+  });
+
+  it("bulan yang pas 4 minggu: Februari 2027 mulai Senin 1 Feb", () => {
+    expect(monthGrid("2027-02-10").map((w) => w[0])).toEqual(["2027-02-01", "2027-02-08", "2027-02-15", "2027-02-22"]);
+  });
+
+  it("minggu mulai Senin; Minggu masih ikut minggu sebelumnya", () => {
+    expect(startOfWeek("2026-11-23")).toBe("2026-11-23");
+    expect(startOfWeek("2026-11-29")).toBe("2026-11-23");
+  });
+
+  it("tambah hari melewati bulan dan tahun; tambah bulan dijepit ke akhir bulan", () => {
+    expect(addDays("2026-12-30", 3)).toBe("2027-01-02");
+    expect(addMonths("2027-01-31", 1)).toBe("2027-02-28");
+    expect(addMonths("2026-01-15", -1)).toBe("2025-12-15");
+  });
+
+  it("hari ini mengikuti zona: 23 Nov 20:00 UTC sudah 24 Nov di WIB", () => {
+    const now = new Date("2026-11-23T20:00:00Z");
+    expect(todayIn("Asia/Jakarta", now)).toBe("2026-11-24");
+    expect(todayIn("America/New_York", now)).toBe("2026-11-23");
+  });
+
+  it("rentang UTC menutup semua zona, dari +14 jam sampai -12 jam", () => {
+    const { from, to } = utcRangeCovering("2026-11-01", "2026-11-30");
+    expect(from.getTime()).toBeLessThanOrEqual(wallTimeToInstant("2026-11-01T00:00", "Pacific/Kiritimati").getTime());
+    expect(to.getTime()).toBeGreaterThan(wallTimeToInstant("2026-11-30T23:59", "Etc/GMT+12").getTime());
+  });
+
+  it("isPlainDate menolak tanggal mustahil", () => {
+    expect(isPlainDate("2026-11-23")).toBe(true);
+    for (const bad of ["2026-02-30", "2026-13-01", "23-11-2026", ""]) expect(isPlainDate(bad), bad).toBe(false);
   });
 });

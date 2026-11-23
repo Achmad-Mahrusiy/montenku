@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { contentItemIdSchema } from "@/lib/validation/content-item";
 import { getContentItem, listNotes, type Note } from "@/server/dal/content-items";
@@ -27,10 +28,14 @@ export default async function ItemPage({ params }: { params: Promise<{ id: strin
 
   const heading = (
     <>
-      <p className="flex items-center gap-2 text-sm text-muted-foreground">
+      <nav aria-label="Lokasi halaman" className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Link href="/kalender" className="inline-flex min-h-11 items-center rounded-sm underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50">
+          Kalender
+        </Link>
+        <span aria-hidden="true">/</span>
         <span aria-hidden="true" className="size-2.5 rounded-full" style={{ background: item.account.color }} />
         {item.account.name}
-      </p>
+      </nav>
       <h1 className="mt-1 font-heading text-3xl font-bold break-words">{item.title}</h1>
     </>
   );

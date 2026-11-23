@@ -4,19 +4,26 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
-// Only pages that exist today. Kalender, Jadwal berulang and Pengaturan join when they are built.
+// Only pages that exist today. Jadwal berulang and Pengaturan join when they are built.
+// `also`: other paths that belong to this section (an item page is reached from the calendar, as in Figma).
 const items = [
-  { href: "/", label: "Dashboard" },
-  { href: "/akun-konten", label: "Akun konten" },
+  { href: "/", label: "Dashboard", also: [] },
+  { href: "/kalender", label: "Kalender", also: ["/konten"] },
+  { href: "/akun-konten", label: "Akun konten", also: [] },
 ] as const;
+
+const isActive = (pathname: string, item: (typeof items)[number]) =>
+  item.href === "/"
+    ? pathname === "/"
+    : [item.href, ...item.also].some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
 export function AppNav({ variant }: { variant: "sidebar" | "bottom" }) {
   const pathname = usePathname();
 
   return (
-    <ul className={variant === "sidebar" ? "grid gap-1" : "grid grid-cols-2 gap-2"}>
+    <ul className={variant === "sidebar" ? "grid gap-1" : "grid grid-cols-3 gap-2"}>
       {items.map((item) => {
-        const active = pathname === item.href;
+        const active = isActive(pathname, item);
         return (
           <li key={item.href}>
             <Link

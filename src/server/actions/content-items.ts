@@ -90,5 +90,5 @@ export async function deleteContentItemAction(formData: FormData) {
   const user = await requireUser();
   const id = contentItemIdSchema.safeParse(formData.get("id"));
   if (id.success) await deleteContentItem(user.id, id.data);
-  redirect("/");
+  redirect("/kalender");
 }
