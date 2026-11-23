@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { check, foreignKey, index, pgEnum, pgTable, primaryKey, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
 import { user } from "./auth";
 import { contentAccounts } from "./content-accounts";
+import { schedules } from "./schedules";
 
 // Production pipeline in order: ide -> naskah -> produksi -> editing -> siap -> terposting.
 export const contentStatus = pgEnum("content_status", ["idea", "script", "production", "editing", "ready", "posted"]);
@@ -20,6 +21,9 @@ export const contentItems = pgTable(
     // Required (DECISIONS.md D-021). Shown in the content account's own timezone.
     targetAt: timestamp("target_at", { withTimezone: true }).notNull(),
     tags: text("tags").array().notNull().default(sql`'{}'::text[]`),
+    // Set when the item fills one slot of a recurring schedule ("Isi konten"). Both or neither.
+    scheduleId: uuid("schedule_id"),
+    occurrenceKey: text("occurrence_key"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
@@ -33,6 +37,15 @@ export const contentItems = pgTable(
       columns: [t.accountId, t.userId],
       foreignColumns: [contentAccounts.id, contentAccounts.userId],
     }).onDelete("cascade"),
+    // No ON DELETE action: deleting a schedule unlinks its items first (DAL), so the content itself is kept.
+    foreignKey({
+      name: "content_items_schedule_owner_fk",
+      columns: [t.scheduleId, t.userId],
+      foreignColumns: [schedules.id, schedules.userId],
+    }),
+    // One item per slot.
+    unique("content_items_schedule_slot_unique").on(t.scheduleId, t.occurrenceKey),
+    check("content_items_slot_complete", sql`(${t.scheduleId} is null) = (${t.occurrenceKey} is null)`),
     // Target for the same kind of owner-checked foreign key from deadlines and notes.
     unique("content_items_id_user_id_unique").on(t.id, t.userId),
     index("content_items_user_target_idx").on(t.userId, t.targetAt),

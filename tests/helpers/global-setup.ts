@@ -1,4 +1,4 @@
-import { rmSync } from "node:fs";
+import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { drizzle } from "drizzle-orm/postgres-js";
@@ -15,9 +15,22 @@ export default async function setup(project: TestProject) {
   if (!url) throw new Error("DATABASE_URL untuk test belum diatur di vitest.config.mts");
   const { port, username, password } = new URL(url);
 
-  // Outside the project folder so OneDrive never syncs it; removed again when tests finish.
-  const databaseDir = join(tmpdir(), "montenku-test-postgres");
-  rmSync(databaseDir, { recursive: true, force: true });
+  // A Postgres left over from an interrupted run keeps the port; fail with a clear message instead of hanging.
+  const free = await new Promise<boolean>((resolve) => {
+    const probe = createServer()
+      .once("error", () => resolve(false))
+      .once("listening", () => probe.close(() => resolve(true)))
+      .listen(Number(port), "127.0.0.1");
+  });
+  if (!free) {
+    throw new Error(
+      `Port ${port} masih dipakai, biasanya Postgres test sisa run sebelumnya. Tutup postgres.exe dari node_modules/@embedded-postgres (Task Manager), lalu jalankan npm test lagi.`,
+    );
+  }
+
+  // Outside the project folder so OneDrive never syncs it, and unique per run so a new run never touches a folder
+  // an old Postgres still uses. persistent: false deletes it when the database stops.
+  const databaseDir = join(tmpdir(), `montenku-test-postgres-${process.pid}`);
 
   const pg = new EmbeddedPostgres({
     databaseDir,
@@ -25,6 +38,8 @@ export default async function setup(project: TestProject) {
     user: username,
     password,
     persistent: false,
+    // Postgres 18's I/O worker processes survive the forced stop on Windows and keep the port; sync I/O has none.
+    postgresFlags: ["-c", "io_method=sync"],
     onLog: () => {},
   });
   await pg.initialise();

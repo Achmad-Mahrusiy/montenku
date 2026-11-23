@@ -15,5 +15,7 @@ export default defineConfig({
     env: { DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:55432/postgres" },
     // Test files share one database, so run them one at a time.
     fileParallelism: false,
+    // Stopping Postgres on Windows can take a while on a busy laptop; the default 10s left it running once.
+    teardownTimeout: 30_000,
   },
 });

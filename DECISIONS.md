@@ -258,6 +258,7 @@ Status: Disetujui (22 Nov 2026). Menggantikan Docker + Supabase CLI, lalu PGlite
 - Paket `embedded-postgres` berlabel beta (versi `18.7.0-beta.19`). Kalau suatu saat rusak, opsi cadangannya PGlite dengan driver Drizzle khusus PGlite.
 - Postgres lokal tidak punya role Supabase (`anon`/`authenticated`). Karena itu test RLS memeriksa katalog (`pg_tables.rowsecurity`, `pg_policies`), bukan mencoba query sebagai `anon`.
 - File test berjalan berurutan karena berbagi satu database.
+- Postgres test dijalankan dengan `io_method=sync`. Proses *I/O worker* Postgres 18 tidak ikut mati saat `embedded-postgres` mematikan database secara paksa di Windows, sehingga port 55432 tertahan dan run berikutnya menggantung (terjadi 23 Nov 2026). Tanpa I/O worker masalah itu hilang; kalau port tetap terpakai, setup test langsung gagal dengan pesan yang jelas.
 ---
 
 ## D-014 Node 24.x dikunci di `engines`
@@ -432,3 +433,20 @@ Status: Usulan
 **Batasan sementara.** "Hari ini" dan label zona kolom Minggu memakai Asia/Jakarta untuk semua pengguna (`CALENDAR_HOME_TIMEZONE`). Diganti dengan `user_settings.timezone` saat Pengaturan dibuat di Fase 5.
 
 **Alasan.** URL membuat tampilan bisa di-refresh, ditandai, dan dibagikan tanpa state di browser. Render di server membuat halaman cepat dan tetap berfungsi walau JavaScript belum termuat.
+
+---
+
+## D-026 Jadwal berulang: tabel, editor mingguan, dan slot yang bisa diisi
+Status: Disetujui sebagian (22 Nov 2026: "Isi konten" ikut Fase 3); sisanya Usulan
+
+**Konteks.** Fase 3 membangun jadwal berulang sesuai D-002 sampai D-004 dan jawaban Q1/Q3. Figma punya tombol "Isi konten" yang mengubah satu slot menjadi item; pengguna memilih fitur itu ikut dibuat.
+
+**Pilihan.**
+- `schedules`: `rrule` (tanpa DTSTART/TZID), `dtstart_local` (jam dinding, tanpa zona), akun konten. `schedule_exceptions`: satu baris per kemunculan yang dilewati atau digeser, dengan kunci jam dinding asli (unik per jadwal).
+- `content_items.schedule_id` + `occurrence_key`: item yang mengisi satu slot. Unik per slot, keduanya terisi atau keduanya kosong (check constraint), dan dijaga foreign key komposit `(schedule_id, user_id)` seperti D-008.
+- Menghapus jadwal **tidak** menghapus item yang sudah dibuat dari slotnya; tautannya dilepas dulu oleh DAL. Item yang dipindah ke akun lain juga lepas dari slot.
+- Editor hanya mingguan (hari + jam + tanggal mulai + tanggal berakhir opsional), seperti Figma. RRULE utuh tetap disimpan, jadi pola lain bisa ditambah tanpa migrasi.
+- "Isi konten" membuat item berjudul sama dengan jadwal, status Ide, di jam slot (jam baru kalau slot digeser). Klik ganda tetap satu item (unique + `ON CONFLICT DO NOTHING`). Slot yang dilewati atau tanggal karangan ditolak.
+- Kolom `active` dari ERD ada tapi belum dipakai di UI (tidak ada di Figma).
+
+**Alasan.** Mengikuti desain Fase 0 yang sudah disetujui; kunci jam dinding membuat pengecualian dan slot terisi tetap menempel saat zona akun diganti (diuji).

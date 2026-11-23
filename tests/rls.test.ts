@@ -21,6 +21,8 @@ describe("RLS deny-all di schema public", () => {
         "content_items",
         "item_stage_deadlines",
         "notes",
+        "schedules",
+        "schedule_exceptions",
       ]),
     );
   });

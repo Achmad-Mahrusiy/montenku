@@ -80,7 +80,8 @@ export async function updateContentItem(userId: string, id: string, input: Conte
   return db.transaction(async (tx) => {
     const updated = await tx
       .update(contentItems)
-      .set(item)
+      // Moving an item to another account takes it out of its recurring-schedule slot, which belongs to the old account.
+      .set(item.accountId === current.accountId ? item : { ...item, scheduleId: null, occurrenceKey: null })
       .where(and(eq(contentItems.id, id), eq(contentItems.userId, userId)))
       .returning({ id: contentItems.id });
     if (updated.length === 0) return false;
