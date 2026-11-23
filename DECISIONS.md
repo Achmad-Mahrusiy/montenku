@@ -450,3 +450,20 @@ Status: Disetujui sebagian (22 Nov 2026: "Isi konten" ikut Fase 3); sisanya Usul
 - Kolom `active` dari ERD ada tapi belum dipakai di UI (tidak ada di Figma).
 
 **Alasan.** Mengikuti desain Fase 0 yang sudah disetujui; kunci jam dinding membuat pengecualian dan slot terisi tetap menempel saat zona akun diganti (diuji).
+
+---
+
+## D-027 Halaman Jadwal berulang: panel lewat URL, 8 kemunculan berikutnya
+Status: Usulan
+
+**Konteks.** Layar Jadwal berulang di Figma: daftar jadwal, editor, dan "Kemunculan berikutnya" dengan Isi konten, Lewati, Geser, Batalkan lewati, Kembalikan.
+
+**Pilihan.**
+- Pola sama dengan Akun konten: `/jadwal?baru=1` dan `/jadwal?ubah=<id>` membuka panel; di HP panel tampil di atas daftar.
+- "Kemunculan berikutnya" menampilkan 8 kemunculan dalam 2 bulan ke depan, termasuk yang dilewati, urut menurut tanggal aslinya (seperti Figma).
+- Slot yang sudah terisi hanya punya tombol **Buka konten**: jam posting yang sebenarnya diatur di item itu sendiri, bukan di slot.
+- **Geser** memakai `<details>` bawaan browser, jadi form kecilnya terbuka tanpa JavaScript tambahan.
+- Dialog konfirmasi hapus kini satu komponen bersama (`src/components/confirm-delete-button.tsx`) untuk item dan jadwal.
+- Bagian "Pengingat untuk tiap kemunculan" dari Figma menunggu Fase 4.
+
+**Alasan.** Mengikuti desain dan pola yang sudah ada di app, dengan kode client sesedikit mungkin.

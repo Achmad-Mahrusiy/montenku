@@ -2,11 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { contentItemIdSchema } from "@/lib/validation/content-item";
+import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
+import { deleteContentItemAction } from "@/server/actions/content-items";
 import { getContentItem, listNotes, type Note } from "@/server/dal/content-items";
 import { requireUser } from "@/server/dal/session";
 import { accountOptions, savedDeadlines, valuesFromItem } from "../form-data";
 import { ItemForm } from "../item-form";
-import { DeleteItemButton } from "./delete-item-button";
 import { NotesPanel, type NoteView } from "./notes-panel";
 
 export const metadata: Metadata = { title: "Detail konten | Montenku" };
@@ -48,7 +49,12 @@ export default async function ItemPage({ params }: { params: Promise<{ id: strin
         initial={valuesFromItem(item)}
         accounts={await accountOptions(user.id, item.accountId)}
         deadlines={savedDeadlines(item)}
-        extraAction={<DeleteItemButton itemId={item.id} title={item.title} />}
+        extraAction={
+          <ConfirmDeleteButton id={item.id} label="Hapus konten" question="Hapus konten ini?" action={deleteContentItemAction}>
+            <span className="font-semibold text-foreground break-words">{item.title}</span> beserta catatan dan tenggatnya
+            akan terhapus permanen. Ini tidak bisa dibatalkan.
+          </ConfirmDeleteButton>
+        }
         aside={<NotesPanel itemId={item.id} notes={notes.map((n) => toNoteView(n, item.account.timezone))} />}
       />
     </main>

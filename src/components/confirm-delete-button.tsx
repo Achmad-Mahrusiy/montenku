@@ -1,9 +1,8 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/button";
-import { deleteContentItemAction } from "@/server/actions/content-items";
 
 function ConfirmButton() {
   const { pending } = useFormStatus();
@@ -14,9 +13,18 @@ function ConfirmButton() {
   );
 }
 
-// Deleting is permanent (notes and deadlines go too), so it asks first. Native <dialog>: Escape closes it
-// and focus stays inside while it is open.
-export function DeleteItemButton({ itemId, title }: { itemId: string; title: string }) {
+type Props = {
+  /** Sent as the hidden "id" field. */
+  id: string;
+  label: string;
+  question: string;
+  /** What will be lost, shown in the dialog. */
+  children: ReactNode;
+  action: (formData: FormData) => Promise<void>;
+};
+
+// Permanent deletes ask first. Native <dialog>: Escape closes it and focus stays inside while it is open.
+export function ConfirmDeleteButton({ id, label, question, children, action }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
 
   return (
@@ -27,22 +35,19 @@ export function DeleteItemButton({ itemId, title }: { itemId: string; title: str
         onClick={() => dialog.current?.showModal()}
         className="flex-1 border-destructive/40 text-destructive hover:bg-destructive/5 lg:flex-none"
       >
-        Hapus konten
+        {label}
       </Button>
       <dialog
         ref={dialog}
-        aria-labelledby={`delete-${itemId}-title`}
+        aria-labelledby={`delete-${id}-title`}
         className="m-auto w-[min(100%-2rem,28rem)] rounded-xl border bg-card p-6 text-foreground backdrop:bg-foreground/40"
       >
-        <h2 id={`delete-${itemId}-title`} className="font-heading text-xl font-bold">
-          Hapus konten ini?
+        <h2 id={`delete-${id}-title`} className="font-heading text-xl font-bold">
+          {question}
         </h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          <span className="font-semibold text-foreground break-words">{title}</span> beserta catatan dan tenggatnya akan
-          terhapus permanen. Ini tidak bisa dibatalkan.
-        </p>
-        <form action={deleteContentItemAction} className="mt-6 flex flex-wrap justify-end gap-3">
-          <input type="hidden" name="id" value={itemId} />
+        <p className="mt-2 text-sm text-muted-foreground">{children}</p>
+        <form action={action} className="mt-6 flex flex-wrap justify-end gap-3">
+          <input type="hidden" name="id" value={id} />
           <Button type="button" variant="outline" onClick={() => dialog.current?.close()}>
             Batal
           </Button>

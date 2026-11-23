@@ -4,12 +4,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
-// Only pages that exist today. Jadwal berulang and Pengaturan join when they are built.
+// Only pages that exist today. Pengaturan joins when it is built. `short`: label in the phone bottom bar.
 // `also`: other paths that belong to this section (an item page is reached from the calendar, as in Figma).
 const items = [
-  { href: "/", label: "Dashboard", also: [] },
-  { href: "/kalender", label: "Kalender", also: ["/konten"] },
-  { href: "/akun-konten", label: "Akun konten", also: [] },
+  { href: "/", label: "Dashboard", short: "Dashboard", also: [] },
+  { href: "/kalender", label: "Kalender", short: "Kalender", also: ["/konten"] },
+  { href: "/jadwal", label: "Jadwal berulang", short: "Jadwal", also: [] },
+  { href: "/akun-konten", label: "Akun konten", short: "Akun", also: [] },
 ] as const;
 
 const isActive = (pathname: string, item: (typeof items)[number]) =>
@@ -21,7 +22,7 @@ export function AppNav({ variant }: { variant: "sidebar" | "bottom" }) {
   const pathname = usePathname();
 
   return (
-    <ul className={variant === "sidebar" ? "grid gap-1" : "grid grid-cols-3 gap-2"}>
+    <ul className={variant === "sidebar" ? "grid gap-1" : "grid grid-cols-4 gap-1"}>
       {items.map((item) => {
         const active = isActive(pathname, item);
         return (
@@ -36,7 +37,7 @@ export function AppNav({ variant }: { variant: "sidebar" | "bottom" }) {
                 active ? "bg-marker text-marker-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
             >
-              {item.label}
+              {variant === "bottom" ? item.short : item.label}
             </Link>
           </li>
         );
