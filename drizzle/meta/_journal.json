@@ -29,6 +29,13 @@
       "when": 1795408324554,
       "tag": "0003_lethal_bruce_banner",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1795419893471,
+      "tag": "0004_sticky_miss_america",
+      "breakpoints": true
     }
   ]
 }

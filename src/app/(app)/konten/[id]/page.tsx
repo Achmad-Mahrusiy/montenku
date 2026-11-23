@@ -7,6 +7,7 @@ import { deleteContentItemAction } from "@/server/actions/content-items";
 import { getContentItem, listNotes, type Note } from "@/server/dal/content-items";
 import { listReminderSettings, listReminderStatuses } from "@/server/dal/reminder-settings";
 import { requireUser } from "@/server/dal/session";
+import { getUserSettings } from "@/server/dal/user-settings";
 import { accountOptions, savedDeadlines, valuesFromItem } from "../form-data";
 import { ItemForm } from "../item-form";
 import { ReminderPanel } from "../../reminder-panel";
@@ -28,10 +29,11 @@ export default async function ItemPage({ params }: { params: Promise<{ id: strin
   const item = id.success ? await getContentItem(user.id, id.data) : null;
   if (!item) notFound();
   const target = { itemId: item.id };
-  const [notes, reminderSettings, reminderStatuses] = await Promise.all([
+  const [notes, reminderSettings, reminderStatuses, userSettings] = await Promise.all([
     listNotes(user.id, item.id),
     listReminderSettings(user.id, target),
     listReminderStatuses(user.id, target),
+    getUserSettings(user.id),
   ]);
   const deadlines = savedDeadlines(item);
 
@@ -73,6 +75,7 @@ export default async function ItemPage({ params }: { params: Promise<{ id: strin
               timeZone={item.account.timezone}
               targetAt={item.targetAt}
               now={new Date(deadlines.now)}
+              userSettings={userSettings}
             />
             <NotesPanel itemId={item.id} notes={notes.map((n) => toNoteView(n, item.account.timezone))} />
           </div>

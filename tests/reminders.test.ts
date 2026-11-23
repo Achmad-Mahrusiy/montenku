@@ -14,6 +14,7 @@ import {
 } from "@/server/dal/reminder-settings";
 import { deliver, reconcile, type Email, type ReminderDeps, type ReminderMessage } from "@/server/dal/reminders";
 import { clearException, createSchedule, fillSlot, setException } from "@/server/dal/schedules";
+import { saveUserSettings } from "@/server/dal/user-settings";
 
 afterAll(() => closeDb());
 
@@ -344,5 +345,66 @@ describe("Kirim ulang pengingat yang gagal", () => {
     expect(await listReminderStatuses(bob.userId, { itemId: alice.itemId })).toEqual([]);
     expect(await retryFailedReminder(bob.userId, id)).toBe(false);
     expect((await listReminderStatuses(alice.userId, { itemId: alice.itemId }))[0]?.status).toBe("failed");
+  });
+});
+
+describe("Pengaturan: email mati dan jam senyap (D-032)", () => {
+  const off = { emailEnabled: false, timezone: "Asia/Jakarta", quiet: null };
+
+  it("jam senyap menggeser send_at: 17:00 WIB di jam senyap 16:00 sampai 18:00 jadi 18:00 WIB", async () => {
+    const f = fakes();
+    const { userId, itemId } = await setup();
+    await saveUserSettings(userId, { emailEnabled: true, timezone: "Asia/Jakarta", quiet: { start: "16:00", end: "18:00" } });
+    await addReminderSetting(userId, { itemId }, 120);
+
+    await reconcile(f.deps, { now: DAY_BEFORE, userId });
+    const [row] = await rowsOf(userId);
+    expect(row?.sendAt.toISOString()).toBe("2026-11-25T11:00:00.000Z");
+    expect(f.queued[0]?.options.idempotencyKey).toBe(`${row?.id}:2026-11-25T11:00:00.000Z`);
+  });
+
+  it("email dimatikan: pengingat pending dibatalkan, termasuk yang sudah lewat, dan tidak ada email", async () => {
+    const f = fakes();
+    const { userId, itemId } = await setup();
+    await addReminderSetting(userId, { itemId }, 120);
+    await reconcile(f.deps, { now: DAY_BEFORE, userId });
+    const message = f.queued[0]!.message;
+
+    await saveUserSettings(userId, off);
+    // A queue message that arrives before reconcile() ran: the claim refuses it.
+    expect(await deliver(f.deps, message, DUE)).toBe("skipped");
+    // The posting time has already passed: still cancelled, never sent late.
+    expect((await reconcile(f.deps, { now: at("2026-11-25T12:30:00Z"), userId })).cancelled).toBe(1);
+    expect((await rowsOf(userId))[0]?.status).toBe("cancelled");
+    expect(f.emails).toEqual([]);
+  });
+
+  it("email dinyalakan lagi: pengingat yang dibatalkan hidup kembali", async () => {
+    const f = fakes();
+    const { userId, itemId } = await setup();
+    await addReminderSetting(userId, { itemId }, 120);
+    await reconcile(f.deps, { now: DAY_BEFORE, userId });
+    await saveUserSettings(userId, off);
+    await reconcile(f.deps, { now: later(DAY_BEFORE, 1), userId });
+    expect((await rowsOf(userId))[0]?.status).toBe("cancelled");
+
+    await saveUserSettings(userId, { ...off, emailEnabled: true });
+    await reconcile(f.deps, { now: later(DAY_BEFORE, 2), userId });
+    expect((await rowsOf(userId))[0]?.status).toBe("pending");
+    expect(await deliver(f.deps, f.queued.at(-1)!.message, DUE)).toBe("sent");
+    expect(f.emails).toHaveLength(1);
+  });
+
+  it("mematikan email satu pengguna tidak memengaruhi pengguna lain (cron tanpa userId)", async () => {
+    const f = fakes();
+    const alice = await setup();
+    const bob = await setup();
+    await addReminderSetting(alice.userId, { itemId: alice.itemId }, 120);
+    await addReminderSetting(bob.userId, { itemId: bob.itemId }, 120);
+    await saveUserSettings(alice.userId, off);
+
+    await reconcile(f.deps, { now: DAY_BEFORE });
+    expect(await rowsOf(alice.userId)).toEqual([]);
+    expect((await rowsOf(bob.userId))[0]?.status).toBe("pending");
   });
 });

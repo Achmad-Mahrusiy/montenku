@@ -1,7 +1,9 @@
 import { Button } from "@/components/ui/button";
-import { instantToWallTime, timezoneShortName } from "@/lib/time";
+import Link from "next/link";
+import { applyQuietHours, instantToWallTime, timezoneShortName } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { offsetLabel, reminderOffsets } from "@/lib/validation/reminder";
+import type { UserSettings } from "@/lib/validation/user-settings";
 import { addReminderAction, removeReminderAction, retryReminderAction } from "@/server/actions/reminders";
 import type { ReminderSetting, ReminderStatusRow, ReminderTarget } from "@/server/dal/reminder-settings";
 
@@ -62,9 +64,11 @@ type Props = {
   /** Item pages only: the posting time, to show when each reminder goes out. */
   targetAt?: Date;
   now: Date;
+  /** Email on/off and quiet hours from Pengaturan (D-032). */
+  userSettings: UserSettings;
 };
 
-export function ReminderPanel({ target, settings, statuses, timeZone, targetAt, now }: Props) {
+export function ReminderPanel({ target, settings, statuses, timeZone, targetAt, now, userSettings }: Props) {
   const unused = reminderOffsets.filter((o) => !settings.some((s) => s.offsetMinutes === o));
   const forSchedule = "scheduleId" in target;
   const failed = forSchedule ? statuses.filter((r) => r.status === "failed") : [];
@@ -78,6 +82,15 @@ export function ReminderPanel({ target, settings, statuses, timeZone, targetAt, 
         <p className="mt-1 text-sm text-muted-foreground">Dikirim ke email akunmu. Waktu ditampilkan dalam zona akun ({timezoneShortName(timeZone, now)}).</p>
       </div>
 
+      {userSettings.emailEnabled ? null : (
+        <p className="rounded-lg bg-muted p-3 text-sm">
+          Email pengingat sedang dimatikan, jadi tidak ada yang dikirim.{" "}
+          <Link href="/pengaturan" className="font-semibold underline underline-offset-4">
+            Buka Pengaturan
+          </Link>
+        </p>
+      )}
+
       {settings.length === 0 ? (
         <p className="text-sm text-muted-foreground">Belum ada pengingat.</p>
       ) : (
@@ -85,7 +98,12 @@ export function ReminderPanel({ target, settings, statuses, timeZone, targetAt, 
           {settings.map((setting) => {
             // An item has one reminder per setting; its row exists once it is within 48 hours (D-005).
             const row = forSchedule ? undefined : statuses.find((r) => r.settingId === setting.id);
-            const sendAt = targetAt ? new Date(targetAt.getTime() - setting.offsetMinutes * 60_000) : null;
+            // The row knows the real send time (quiet hours applied); before it exists, work it out the same way.
+            const sendAt =
+              row?.sendAt ??
+              (targetAt
+                ? applyQuietHours(new Date(targetAt.getTime() - setting.offsetMinutes * 60_000), targetAt, userSettings.quiet, userSettings.timezone)
+                : null);
             const status = row?.status ?? (targetAt && targetAt <= now ? "late" : "pending");
             return (
               <li key={setting.id} className="grid gap-2 py-3">

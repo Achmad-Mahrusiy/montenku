@@ -430,7 +430,7 @@ Status: Usulan
 - Di HP: Bulan menampilkan titik warna per hari, dan seluruh kotak tanggal menjadi tautan ke Daftar hari itu. Minggu bisa digeser ke samping di dalam kotaknya sendiri; halaman tidak pernah meluber.
 - Filter per akun memilih satu akun (atau Semua). Akun milik orang lain di URL tidak menampilkan apa pun, karena DAL tetap memfilter `user_id`.
 
-**Batasan sementara.** "Hari ini" dan label zona kolom Minggu memakai Asia/Jakarta untuk semua pengguna (`CALENDAR_HOME_TIMEZONE`). Diganti dengan `user_settings.timezone` saat Pengaturan dibuat di Fase 5.
+**Batasan sementara.** "Hari ini" dan label zona kolom Minggu memakai Asia/Jakarta untuk semua pengguna (`CALENDAR_HOME_TIMEZONE`). Diganti dengan `user_settings.timezone` saat Pengaturan dibuat di Fase 5. **Selesai di D-032.**
 
 **Alasan.** URL membuat tampilan bisa di-refresh, ditandai, dan dibagikan tanpa state di browser. Render di server membuat halaman cepat dan tetap berfungsi walau JavaScript belum termuat.
 
@@ -538,3 +538,23 @@ Status: Usulan
 - Tambah dan Hapus menjalankan `reconcile()` lewat `after()` seperti aksi lain (D-030). Pilihan offset di form hanya preset yang belum dipakai.
 
 **Alasan.** Mengikuti pola yang sudah ada (Server Action, form tidak terkontrol, ownership dicek di DAL). Diuji di browser dengan Resend sungguhan: pengingat gagal 5 kali karena alamat `example.com`, alamat diganti ke `delivered@resend.dev`, "Kirim ulang" membuatnya Terkirim.
+
+---
+
+## D-032 Pengaturan: email, jam senyap, dan zona waktu pengguna
+Status: Usulan
+
+**Konteks.** Fase 5 Langkah 1. Brief: preferensi email dan jam senyap opsional. Fase 5 dibagi tiga langkah: (1) Pengaturan, (2) dashboard Hari ini/Minggu ini dan deteksi bentrok, (3) hapus akun. Jawaban pengguna 23 Nov 2026: slot jadwal kosong ikut dihitung untuk bentrok, hapus akun memakai ketik HAPUS ditambah password, dark mode tidak dibuat dulu, dan pengingat yang waktu "sebelum jam senyap"-nya sudah lewat **tetap dikirim saat itu juga**.
+
+**Pilihan.**
+- Tabel `user_settings` (satu baris per pengguna, sesuai ERD Fase 0): `email_enabled`, `timezone`, `quiet_start`, `quiet_end`. Baris baru dibuat saat pertama kali disimpan; tanpa baris berarti nilai bawaan (email nyala, Asia/Jakarta, tanpa jam senyap). Database menolak jam senyap setengah terisi atau mulai sama dengan selesai. RLS deny-all seperti tabel lain.
+- **Jam senyap (Q2)** dihitung di `applyQuietHours()` (`src/lib/time.ts`) saat `reconcile()` menghitung `send_at`. Jadi `send_at` di tabel tetap satu-satunya sumber kebenaran, dan klaim serta kedua kunci idempotency (D-006, D-007) tidak berubah. Pengingat di jam senyap ditunda ke akhir jam senyap; kalau itu melewati waktu posting, dikirim satu menit sebelum jam senyap mulai. Kalau waktu itu sudah lewat, `reconcile()` mengirimnya saat itu juga (langkah 4 yang sudah ada). Jam senyap memakai zona waktu pengguna, bukan zona akun konten.
+- **Email dimatikan:** pengingat pengguna itu tidak dibuat; yang masih pending dibatalkan, termasuk yang waktu postingnya sudah lewat (kalau tidak, penyapu akan mengirimnya terlambat). Klaim di `deliver()` juga menolak pengguna yang email-nya mati, untuk pesan antrean yang datang sebelum `reconcile()` berjalan. Menyalakan lagi menghidupkan pengingat yang dibatalkan (upsert D-029).
+- Menyimpan Pengaturan langsung menjalankan `reconcile()` untuk pengguna itu (ditunggu, bukan `after()`), supaya "Pengaturan tersimpan." berarti pengingat sudah ikut berubah.
+- **Zona waktu pengguna** menggantikan `CALENDAR_HOME_TIMEZONE` di kalender ("hari ini" dan label zona Minggu) dan tanggal mulai bawaan jadwal baru (batasan sementara D-025 selesai). Jadwal tiap akun konten tetap memakai zona akunnya (D-022).
+- Satu form dengan tombol "Simpan pengaturan", bukan toggle yang langsung tersimpan seperti kesan Figma: tetap berfungsi tanpa JavaScript dan satu klik berarti satu `reconcile()`.
+- Nav: "Pengaturan" masuk sidebar dan bottom bar. Bottom bar memakai lebar kolom sesuai label dan teks 13px seperti Figma, jadi lima label muat dari lebar 360px; layar lebih sempit menggeser bar ke samping, bukan memotong label.
+
+**Temuan dan perbaikan (bug sejak Fase 2).** Setelah Server Action selesai, React mereset form ke nilai bawaan, tapi `<select>` kembali ke opsi yang dirender pertama kali (perubahan `defaultValue` berikutnya diabaikan). Akibatnya, setelah konten dipindah ke akun lain dan disimpan, pilihan akun masih menampilkan akun lama, dan simpan berikutnya memindahkannya kembali. Pengaturan zona waktu punya masalah yang sama. Perbaikan: `key` pada `<form>` dari nilai yang ditampilkan, sehingga form dibuat ulang saat nilainya berubah. Diuji di browser untuk form konten dan Pengaturan.
+
+**Alasan.** Mengikuti desain pengingat yang sudah disetujui (satu tabel sumber kebenaran, `reconcile()` sebagai satu-satunya pengubah jadwal). Test: kasus jam senyap (melewati tengah malam, selesai tepat di waktu posting, melewati posting, siang hari, mulai = selesai, DST New York), email mati/nyala, isolasi antar pengguna. Uji mutasi: menghapus salah satu dari dua pemeriksaan "email mati" membuat satu test gagal.

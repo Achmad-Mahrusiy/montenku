@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   addDays,
   addMonths,
+  applyQuietHours,
   instantToWallTime,
   isPlainDate,
   isWallTime,
@@ -115,5 +116,54 @@ describe("tanggal kalender", () => {
   it("isPlainDate menolak tanggal mustahil", () => {
     expect(isPlainDate("2026-11-23")).toBe(true);
     for (const bad of ["2026-02-30", "2026-13-01", "23-11-2026", ""]) expect(isPlainDate(bad), bad).toBe(false);
+  });
+});
+
+describe("applyQuietHours (jam senyap, Q2)", () => {
+  const night = { start: "22:00", end: "07:00" };
+  const run = (sendAt: string, targetAt: string, quiet = night, zone = "Asia/Jakarta") =>
+    applyQuietHours(new Date(sendAt), new Date(targetAt), quiet, zone).toISOString();
+
+  it("di luar jam senyap: tidak berubah", () => {
+    expect(run("2026-11-24T14:59:00.000Z", "2026-11-25T02:00:00.000Z")).toBe("2026-11-24T14:59:00.000Z"); // 21:59 WIB
+    expect(run("2026-11-25T00:00:00.000Z", "2026-11-25T02:00:00.000Z")).toBe("2026-11-25T00:00:00.000Z"); // 07:00 WIB, the end is exclusive
+    expect(applyQuietHours(new Date("2026-11-24T16:00:00Z"), new Date("2026-11-25T02:00:00Z"), null, "Asia/Jakarta").toISOString()).toBe(
+      "2026-11-24T16:00:00.000Z",
+    );
+  });
+
+  it("melewati tengah malam: 23:00 dan 02:00 WIB sama-sama ditunda ke 07:00 WIB besok paginya", () => {
+    // Posting 09:00 WIB on 25 Nov = 02:00Z.
+    expect(run("2026-11-24T16:00:00.000Z", "2026-11-25T02:00:00.000Z")).toBe("2026-11-25T00:00:00.000Z");
+    expect(run("2026-11-24T19:00:00.000Z", "2026-11-25T02:00:00.000Z")).toBe("2026-11-25T00:00:00.000Z");
+  });
+
+  it("jam senyap selesai tepat di waktu posting: dikirim saat itu", () => {
+    expect(run("2026-11-24T16:00:00.000Z", "2026-11-25T00:00:00.000Z")).toBe("2026-11-25T00:00:00.000Z");
+  });
+
+  it("akhir jam senyap melewati posting: dikirim satu menit sebelum jam senyap mulai (21:59 WIB)", () => {
+    // Posting 06:00 WIB on 25 Nov = 24 Nov 23:00Z; quiet hours began 22:00 WIB on 24 Nov = 15:00Z.
+    expect(run("2026-11-24T16:00:00.000Z", "2026-11-24T23:00:00.000Z")).toBe("2026-11-24T14:59:00.000Z");
+    expect(run("2026-11-24T19:00:00.000Z", "2026-11-24T23:00:00.000Z")).toBe("2026-11-24T14:59:00.000Z");
+    // "Tepat waktu" for a posting inside quiet hours.
+    expect(run("2026-11-24T23:00:00.000Z", "2026-11-24T23:00:00.000Z")).toBe("2026-11-24T14:59:00.000Z");
+  });
+
+  it("jam senyap siang (13:00 sampai 15:00) tidak melewati tengah malam", () => {
+    const nap = { start: "13:00", end: "15:00" };
+    expect(run("2026-11-25T07:00:00.000Z", "2026-11-25T12:00:00.000Z", nap)).toBe("2026-11-25T08:00:00.000Z"); // 14:00 -> 15:00 WIB
+    expect(run("2026-11-25T05:59:00.000Z", "2026-11-25T12:00:00.000Z", nap)).toBe("2026-11-25T05:59:00.000Z"); // 12:59 WIB
+  });
+
+  it("mulai sama dengan selesai berarti tidak ada jam senyap", () => {
+    expect(run("2026-11-24T16:00:00.000Z", "2026-11-25T02:00:00.000Z", { start: "22:00", end: "22:00" })).toBe("2026-11-24T16:00:00.000Z");
+  });
+
+  it("DST New York: jam senyap 01:00 sampai 03:00 di malam jam maju berakhir 03:00 EDT", () => {
+    // 8 Mar 2026: 02:00 EST jumps to 03:00 EDT. 01:30 EST = 06:30Z; 03:00 EDT = 07:00Z.
+    expect(run("2026-03-08T06:30:00.000Z", "2026-03-08T16:00:00.000Z", { start: "01:00", end: "03:00" }, "America/New_York")).toBe(
+      "2026-03-08T07:00:00.000Z",
+    );
   });
 });

@@ -1,9 +1,10 @@
 import { and, eq, gt, inArray, isNotNull, isNull, lt, lte, ne, or, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { contentAccounts, contentItems, reminderSettings, reminders, scheduleExceptions, schedules, user } from "@/db/schema";
+import { contentAccounts, contentItems, reminderSettings, reminders, scheduleExceptions, schedules, user, userSettings } from "@/db/schema";
 import { occurrencesBetween, type ExceptionIn } from "@/lib/occurrences";
-import { instantToWallTime, timezoneShortName } from "@/lib/time";
+import { applyQuietHours, instantToWallTime, timezoneShortName } from "@/lib/time";
 import { offsetLabel } from "@/lib/validation/reminder";
+import { DEFAULT_SETTINGS, quietFromRow } from "@/server/dal/user-settings";
 
 // The reminder engine (DECISIONS.md D-005 to D-007, docs/fase-0-arsitektur.md section 4).
 // reminders is the source of truth; a queue message only "knocks on the door" and the row is always re-read.
@@ -30,7 +31,19 @@ type Desired = { settingId: string; userId: string; occurrenceKey: string; targe
 const wall = (value: string) => value.replace(" ", "T").slice(0, 16);
 const minutes = (n: number) => n * 60 * 1000;
 
-/** Every reminder that should exist now: target still ahead, send_at within the window. Archived accounts get none. */
+// No user_settings row means email on (D-032). Used to skip and cancel reminders of users who turned email off.
+const emailOn = sql`coalesce(${userSettings.emailEnabled}, true)`;
+const emailOff = sql`exists (select 1 from ${userSettings} where ${userSettings.userId} = ${reminders.userId} and not ${userSettings.emailEnabled})`;
+const quietColumns = { quietStart: userSettings.quietStart, quietEnd: userSettings.quietEnd, userTimezone: userSettings.timezone };
+type QuietRow = { quietStart: string | null; quietEnd: string | null; userTimezone: string | null };
+/** send_at = target - offset, moved out of the user's quiet hours (Q2). */
+const sendTime = (targetAt: Date, offset: number, r: QuietRow) =>
+  applyQuietHours(new Date(targetAt.getTime() - minutes(offset)), targetAt, quietFromRow(r.quietStart, r.quietEnd), r.userTimezone ?? DEFAULT_SETTINGS.timezone);
+
+/**
+ * Every reminder that should exist now: target still ahead, send_at within the window.
+ * Archived accounts and users with email turned off get none.
+ */
 async function desiredReminders(now: Date, userId?: string): Promise<Desired[]> {
   const horizon = new Date(now.getTime() + WINDOW_MS);
   const byUser = (column: typeof reminderSettings.userId) => (userId ? eq(column, userId) : undefined);
@@ -38,13 +51,14 @@ async function desiredReminders(now: Date, userId?: string): Promise<Desired[]> 
 
   // Single items: one reminder per setting, key "once".
   const itemRows = await db
-    .select({ settingId: reminderSettings.id, userId: reminderSettings.userId, offset: reminderSettings.offsetMinutes, targetAt: contentItems.targetAt })
+    .select({ settingId: reminderSettings.id, userId: reminderSettings.userId, offset: reminderSettings.offsetMinutes, targetAt: contentItems.targetAt, ...quietColumns })
     .from(reminderSettings)
     .innerJoin(contentItems, eq(contentItems.id, reminderSettings.itemId))
     .innerJoin(contentAccounts, eq(contentAccounts.id, contentItems.accountId))
-    .where(and(byUser(reminderSettings.userId), isNull(contentAccounts.archivedAt), gt(contentItems.targetAt, now)));
+    .leftJoin(userSettings, eq(userSettings.userId, reminderSettings.userId))
+    .where(and(byUser(reminderSettings.userId), isNull(contentAccounts.archivedAt), gt(contentItems.targetAt, now), emailOn));
   for (const r of itemRows) {
-    const sendAt = new Date(r.targetAt.getTime() - minutes(r.offset));
+    const sendAt = sendTime(r.targetAt, r.offset, r);
     if (sendAt <= horizon) result.push({ settingId: r.settingId, userId: r.userId, occurrenceKey: "once", targetAt: r.targetAt, sendAt });
   }
 
@@ -58,11 +72,13 @@ async function desiredReminders(now: Date, userId?: string): Promise<Desired[]> 
       rrule: schedules.rrule,
       dtstartLocal: schedules.dtstartLocal,
       timezone: contentAccounts.timezone,
+      ...quietColumns,
     })
     .from(reminderSettings)
     .innerJoin(schedules, eq(schedules.id, reminderSettings.scheduleId))
     .innerJoin(contentAccounts, eq(contentAccounts.id, schedules.accountId))
-    .where(and(byUser(reminderSettings.userId), isNull(contentAccounts.archivedAt)));
+    .leftJoin(userSettings, eq(userSettings.userId, reminderSettings.userId))
+    .where(and(byUser(reminderSettings.userId), isNull(contentAccounts.archivedAt), emailOn));
   if (scheduleRows.length === 0) return result;
 
   const ids = [...new Set(scheduleRows.map((r) => r.scheduleId))];
@@ -83,7 +99,7 @@ async function desiredReminders(now: Date, userId?: string): Promise<Desired[]> 
     // Look as far ahead as the window plus this offset, so an "H-3" reminder is created on time.
     for (const o of occurrencesBetween(rule, exceptions, now, new Date(horizon.getTime() + minutes(r.offset)))) {
       const targetAt = filled.get(`${r.scheduleId}|${o.key}`) ?? o.at;
-      const sendAt = new Date(targetAt.getTime() - minutes(r.offset));
+      const sendAt = sendTime(targetAt, r.offset, r);
       if (targetAt > now && sendAt <= horizon) {
         result.push({ settingId: r.settingId, userId: r.userId, occurrenceKey: o.key, targetAt, sendAt });
       }
@@ -124,12 +140,13 @@ export async function reconcile(deps: ReminderDeps, { now, userId }: { now: Date
   }
 
   // 2. Cancel pending rows that are no longer wanted: item deleted or moved out of the window, occurrence skipped,
-  //    setting removed, account archived. Their queue messages then find a non-pending row and do nothing (D-006).
+  //    setting removed, account archived, email turned off (then also overdue ones, which would otherwise go out in
+  //    step 4). Their queue messages then find a non-pending row and do nothing (D-006).
   const wanted = new Set(desired.map((d) => `${d.settingId}|${d.occurrenceKey}`));
   const pending = await db
     .select({ id: reminders.id, settingId: reminders.reminderSettingId, key: reminders.occurrenceKey })
     .from(reminders)
-    .where(and(byUser, eq(reminders.status, "pending"), gt(reminders.targetAt, now)));
+    .where(and(byUser, eq(reminders.status, "pending"), or(gt(reminders.targetAt, now), emailOff)));
   const stale = pending.filter((p) => !wanted.has(`${p.settingId}|${p.key}`)).map((p) => p.id);
   if (stale.length > 0) {
     const rows = await db
@@ -213,6 +230,8 @@ export async function deliver(deps: ReminderDeps, message: ReminderMessage, now:
         eq(reminders.status, "pending"),
         eq(reminders.sendAt, sendAt),
         lte(reminders.sendAt, new Date(now.getTime() + EARLY_MS)),
+        // Email turned off since this was queued: leave it for reconcile() to cancel.
+        sql`not ${emailOff}`,
       ),
     )
     .returning();

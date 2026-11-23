@@ -26,6 +26,7 @@ export const indonesianTimezones: Record<string, string> = {
 };
 export const allTimezones = Intl.supportedValuesOf("timeZone");
 export const timezoneLabel = (timezone: string) => indonesianTimezones[timezone] ?? timezone;
+export const timezoneSchema = z.string().refine((value) => allTimezones.includes(value), "Zona waktu tidak dikenal");
 
 export const contentAccountSchema = z.object({
   name: z.string().trim().min(1, "Nama akun wajib diisi").max(60, "Nama akun maksimal 60 karakter"),
@@ -43,7 +44,7 @@ export const contentAccountSchema = z.object({
         .regex(/^[A-Za-z0-9._-]+$/, "Handle hanya boleh berisi huruf, angka, titik, garis bawah, dan tanda hubung"),
     ),
   color: colorSchema,
-  timezone: z.string().refine((value) => allTimezones.includes(value), "Zona waktu tidak dikenal"),
+  timezone: timezoneSchema,
 });
 
 export type ContentAccountInput = z.infer<typeof contentAccountSchema>;

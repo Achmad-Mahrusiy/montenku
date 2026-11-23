@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
-import { CALENDAR_HOME_TIMEZONE, placeOnCalendar, scheduleSlots } from "@/lib/calendar";
+import { placeOnCalendar, scheduleSlots } from "@/lib/calendar";
 import {
   addDays,
   addMonths,
@@ -19,6 +19,7 @@ import { listContentAccounts } from "@/server/dal/content-accounts";
 import { listContentItems } from "@/server/dal/content-items";
 import { listFilledSlots, listSchedules } from "@/server/dal/schedules";
 import { requireUser } from "@/server/dal/session";
+import { getUserSettings } from "@/server/dal/user-settings";
 import { ListView, MonthView, WeekView, dayNumber } from "./views";
 
 export const metadata: Metadata = { title: "Kalender | Montenku" };
@@ -53,7 +54,8 @@ function weekLabel(monday: string) {
 
 export default async function CalendarPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const user = await requireUser();
-  const today = todayIn(CALENDAR_HOME_TIMEZONE);
+  const { timezone: homeZone } = await getUserSettings(user.id);
+  const today = todayIn(homeZone);
   const { view, date, accountId } = readParams(await searchParams, today);
 
   const href = (next: Partial<{ view: View; date: string; accountId: string | null }>) => {
@@ -86,7 +88,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
     listSchedules(user.id, accountIds),
   ]);
   const filled = await listFilledSlots(user.id, schedules.map((s) => s.id));
-  const days = placeOnCalendar([...items, ...scheduleSlots(schedules, filled, range.from, range.to)]);
+  const days = placeOnCalendar([...items, ...scheduleSlots(schedules, filled, range.from, range.to)], homeZone);
   // The query range is padded for every timezone; only count what actually lands on screen.
   const onScreen = shown.flatMap((d) => days.get(d) ?? []);
   const visibleCount = onScreen.length;
@@ -201,7 +203,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
             dayHref={(d) => `${href({ view: "daftar", date: d })}#hari-${d}`}
           />
         ) : view === "minggu" ? (
-          <WeekView monday={monday} days={days} today={today} zoneLabel={timezoneShortName(CALENDAR_HOME_TIMEZONE, new Date(`${monday}T12:00:00Z`))} />
+          <WeekView monday={monday} days={days} today={today} zoneLabel={timezoneShortName(homeZone, new Date(`${monday}T12:00:00Z`))} />
         ) : (
           <ListView dates={monthDates} days={days} today={today} />
         )}

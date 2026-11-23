@@ -104,3 +104,27 @@ export function utcRangeCovering(firstDate: string, lastDate: string): { from: D
     to: new Date(Date.parse(`${lastDate}T00:00:00Z`) + day + 12 * 60 * 60 * 1000),
   };
 }
+
+// --- Quiet hours (DECISIONS.md Q2, D-032) ---
+
+/** "HH:mm" wall-clock times in the user's zone. start > end wraps past midnight (22:00 to 07:00). */
+export type QuietHours = { start: string; end: string };
+
+/**
+ * Moves a reminder out of quiet hours: to the moment quiet hours end, or, when that is after the posting,
+ * to one minute before they began. That earlier time may already be past; reconcile() then sends at once.
+ */
+export function applyQuietHours(sendAt: Date, targetAt: Date, quiet: QuietHours | null, timeZone: string): Date {
+  if (!quiet || quiet.start === quiet.end) return sendAt;
+  const local = instantToWallTime(sendAt, timeZone);
+  const date = local.slice(0, 10);
+  const time = local.slice(11);
+  const wraps = quiet.start > quiet.end;
+  const inside = wraps ? time >= quiet.start || time < quiet.end : time >= quiet.start && time < quiet.end;
+  if (!inside) return sendAt;
+
+  const end = wallTimeToInstant(`${wraps && time >= quiet.start ? addDays(date, 1) : date}T${quiet.end}`, timeZone);
+  if (end <= targetAt) return end;
+  const start = wallTimeToInstant(`${wraps && time < quiet.end ? addDays(date, -1) : date}T${quiet.start}`, timeZone);
+  return new Date(start.getTime() - 60_000);
+}

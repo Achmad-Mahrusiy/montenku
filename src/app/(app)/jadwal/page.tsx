@@ -3,7 +3,6 @@ import Link from "next/link";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CALENDAR_HOME_TIMEZONE } from "@/lib/calendar";
 import { occurrencesBetween, type Occurrence } from "@/lib/occurrences";
 import { timezoneShortName, todayIn } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -18,6 +17,7 @@ import {
 import { listFilledSlots, listSchedules, toRule, type FilledSlot, type Schedule } from "@/server/dal/schedules";
 import { listReminderSettings, listReminderStatuses } from "@/server/dal/reminder-settings";
 import { requireUser } from "@/server/dal/session";
+import { getUserSettings } from "@/server/dal/user-settings";
 import { accountOptions } from "../konten/form-data";
 import { ReminderPanel } from "../reminder-panel";
 import { ScheduleForm, type ScheduleFormValues } from "./schedule-form";
@@ -136,7 +136,7 @@ function OccurrenceRow({ scheduleId, row }: { scheduleId: string; row: Row }) {
 export default async function SchedulesPage({ searchParams }: { searchParams: Promise<{ baru?: string; ubah?: string }> }) {
   const user = await requireUser();
   const params = await searchParams;
-  const [schedules, accounts] = await Promise.all([listSchedules(user.id), accountOptions(user.id)]);
+  const [schedules, accounts, settings] = await Promise.all([listSchedules(user.id), accountOptions(user.id), getUserSettings(user.id)]);
   const filled = await listFilledSlots(user.id, schedules.map((s) => s.id));
   const now = upcomingWindow().from;
 
@@ -157,7 +157,7 @@ export default async function SchedulesPage({ searchParams }: { searchParams: Pr
         startDate: editing.dtstartLocal.slice(0, 10),
       }
     : firstAccount
-      ? { accountId: firstAccount.id, title: "", days: [], time: "", startDate: todayIn(CALENDAR_HOME_TIMEZONE), endDate: "" }
+      ? { accountId: firstAccount.id, title: "", days: [], time: "", startDate: todayIn(settings.timezone), endDate: "" }
       : null;
   const rows = editing ? upcoming(editing, filled, true) : [];
   const [reminderSettings, reminderStatuses] = editing
@@ -234,6 +234,7 @@ export default async function SchedulesPage({ searchParams }: { searchParams: Pr
                 statuses={reminderStatuses}
                 timeZone={editing.account.timezone}
                 now={now}
+                userSettings={settings}
               />
             ) : null}
 

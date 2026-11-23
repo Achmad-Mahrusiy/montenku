@@ -1,8 +1,8 @@
 import { occurrencesBetween, type ExceptionIn } from "@/lib/occurrences";
 import { instantToWallTime, timezoneShortName } from "@/lib/time";
 
-// shortcut: "today" and which zone counts as "home" use Asia/Jakarta for everyone, until a user timezone setting
-// exists (user_settings.timezone, Fase 5). Items themselves always show in their own account's zone (D-022).
+// The "home" zone is the user's own (Pengaturan, D-032); this default matches user_settings.timezone's.
+// Items themselves always show in their own account's zone (D-022).
 export const CALENDAR_HOME_TIMEZONE = "Asia/Jakarta";
 
 type Account = { id: string; name: string; color: string; timezone: string };

@@ -57,7 +57,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
       {/* pb-24 leaves room for the fixed bottom nav on phones. */}
       <div className="min-w-0 pb-24 lg:pb-0">{children}</div>
 
-      <nav aria-label="Navigasi utama" className="fixed inset-x-0 bottom-0 border-t bg-card px-4 py-2 lg:hidden">
+      <nav aria-label="Navigasi utama" className="fixed inset-x-0 bottom-0 border-t bg-card px-2 py-2 lg:hidden">
         <AppNav variant="bottom" />
       </nav>
     </div>

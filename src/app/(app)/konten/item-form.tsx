@@ -81,7 +81,9 @@ export function ItemForm({ itemId, initial, accounts, deadlines, heading, extraA
     </div>
     {/* Side column only from xl: at lg (1024px) the sidebar leaves too little room for two columns. */}
     <div className={cn("mt-6 grid gap-6 xl:items-start", aside && "xl:grid-cols-[minmax(0,1fr)_400px]")}>
-    <form id="item-form" action={formAction} noValidate className="grid min-w-0 gap-6">
+    {/* key: remount when the shown values change. React's reset after an action puts a <select> back to the option
+        it first rendered (later defaultValue changes are ignored), so a moved item showed its old account. */}
+    <form key={JSON.stringify(values)} id="item-form" action={formAction} noValidate className="grid min-w-0 gap-6">
       {itemId ? <input type="hidden" name="id" value={itemId} /> : null}
       {state.error ? (
         <p role="alert" className="rounded-lg border border-destructive/30 bg-card p-3 text-sm text-destructive">
