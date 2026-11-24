@@ -19,3 +19,6 @@ next-env.d.ts
 
 # test
 /coverage
+/test-results/
+/playwright-report/
+/blob-report/

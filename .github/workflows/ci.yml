@@ -1,0 +1,47 @@
+# Every push to main and every pull request: types, lint, unit tests (real Postgres via embedded-postgres), build, and
+# the Playwright end-to-end tests against the built app (D-038). No real secrets: CI never touches Supabase, Upstash,
+# Resend or a push service.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      # Dummy values: src/lib/env.ts checks these at startup. Tests and E2E set their own throwaway database.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:55434/postgres
+      BETTER_AUTH_SECRET: ci-only-secret-not-used-anywhere-else-0123456789
+      BETTER_AUTH_URL: http://localhost:3200
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7

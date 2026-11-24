@@ -663,3 +663,24 @@ Status: Usulan
 **Alasan.** Test: daftar host diterima dan ditolak (host lain, `fcm.googleapis.com.evil.com`, host di query string, http, port, kredensial, IP, localhost), skema langganan, berkas PWA tidak dihalangi proxy sementara halaman tetap dijaga, serta status, ringkasan, dan peringatan gagal yang menyebut kanalnya.
 
 **Belum terverifikasi.** Pengiriman push sungguhan dan penggantian lewat `tag`: browser di panel pratinjau memblokir izin notifikasi dan service worker, jadi harus dicoba di Chrome pengguna. Pemasangan di iPhone butuh HTTPS (Fase 7).
+
+---
+
+## D-038 E2E Playwright, CI GitHub Actions, dan keep-alive
+Status: Usulan
+
+**Konteks.** Fase 7 Langkah 1. Fase 7 dibagi tiga langkah: (1) E2E, CI, dan keep-alive, (2) README, (3) push ke GitHub, deploy ke Vercel, akun demo, dan uji langsung. Jawaban pengguna 24 Nov 2026: repo `github.com/Achmad-Mahrusiy/montenku`, situs live memakai project Supabase yang sama, dan Playwright dijalankan di laptop dan di CI.
+
+**Pilihan.**
+- **E2E Playwright** (`e2e/`, `npm run test:e2e`) memakai app hasil build (`next start`), sama di laptop dan di CI. Dua test:
+  - Alur utama brief: daftar → dua akun konten (Jakarta dan Tokyo) → jadwal berulang → kalender gabungan dan per akun → konten di akun Tokyo dengan pengingat "2 jam sebelum" (tampil 17:00 di zona akun).
+  - Isolasi: pengguna kedua di browser terpisah membuka URL konten dan akun konten milik pengguna pertama, dan hasilnya "tidak ditemukan".
+- **Database E2E** adalah Postgres sementara (`e2e/start-db.mjs`) yang dijalankan sebagai `webServer` pertama. Playwright 1.65 menjalankan `webServer` sebelum `globalSetup` (dicek di kode sumbernya), jadi database tidak bisa dijalankan di `globalSetup`. Database baru menjawab di port kesiapan setelah semua migrasi selesai.
+- **E2E tidak pernah menyentuh layanan luar.** Semua kunci (Supabase, Upstash, Resend, VAPID, cron) diisi kosong atau dummy di env `webServer`, karena Next akan mengisi kunci yang hilang dari `.env`. Port E2E khusus (3200), dan server yang sudah berjalan tidak dipakai ulang. Test pertama mengecek pengguna barunya benar-benar ada di database sementara, sehingga override yang rusak langsung ketahuan.
+- **Tanggal:** jadwal memilih ketujuh hari, supaya bulan ini selalu punya slot kosong, apa pun tanggalnya. Konten memakai tanggal tetap di 2031, sehingga test tidak bergantung pada hari dijalankan (CI berjalan dalam UTC). Semua test unit juga lulus dengan `TZ=UTC`.
+- **Email dan "tepat satu kali"** tetap diuji di Vitest dengan jam palsu (D-005 sampai D-007, D-036), tidak lewat E2E. Tidak ada saklar email palsu di kode produksi. Pengiriman sungguhan dicek di Langkah 3.
+- **CI** (`.github/workflows/ci.yml`) berjalan pada push ke `main` dan setiap pull request: typecheck, lint, Vitest (Postgres sungguhan lewat embedded-postgres, biner Linux sudah ada di lockfile), build, lalu E2E. Laporan Playwright diunggah kalau gagal. Hanya memakai env dummy dan izin `contents: read`. Versi action (`checkout`, `setup-node`, `upload-artifact` v7) dicek di halaman rilis masing-masing.
+- **Keep-alive** (`.github/workflows/keep-alive.yml`) memanggil `/api/health` sekali sehari (Supabase Free pause setelah 7 hari tanpa aktivitas), plus tombol jalankan manual. `curl --fail` membuat workflow gagal kalau jawabannya bukan 2xx. Workflow dilewati sampai variabel repo `HEALTH_URL` diisi (Langkah 3). GitHub mematikan workflow terjadwal di repo publik setelah 60 hari tanpa aktivitas repo; aktifkan lagi di tab Actions kalau itu terjadi.
+- Folder data Postgres sisa penghentian paksa (sekitar 40 MB per folder) dihapus otomatis saat test berikutnya mulai, baik di Vitest maupun E2E.
+
+**Belum terverifikasi.** Kedua workflow baru berjalan setelah push pertama ke GitHub. E2E dan semua langkah CI sudah dijalankan di laptop.

@@ -1,3 +1,4 @@
+import { readdirSync, rmSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -31,6 +32,10 @@ export default async function setup(project: TestProject) {
   // Outside the project folder so OneDrive never syncs it, and unique per run so a new run never touches a folder
   // an old Postgres still uses. persistent: false deletes it when the database stops.
   const databaseDir = join(tmpdir(), `montenku-test-postgres-${process.pid}`);
+  // The port is free, so no other test database is running: folders left by a forced stop (about 40 MB each) can go.
+  for (const name of readdirSync(tmpdir())) {
+    if (name.startsWith("montenku-test-postgres-")) rmSync(join(tmpdir(), name), { recursive: true, force: true });
+  }
 
   const pg = new EmbeddedPostgres({
     databaseDir,

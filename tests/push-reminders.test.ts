@@ -83,7 +83,7 @@ describe("pengingat per kanal: email dan push (D-036)", () => {
     const { deps } = fakes({ [devices[0]!.endpoint]: "fail" });
     await reconcile(deps, { now: DAY_BEFORE, userId });
     const message = messageOf((await rowOf(userId, "push"))!);
-    for (let attempt = 0; attempt < 5; attempt++) await deliver(deps, message, later(DUE, attempt)).catch(() => {});
+    for (let attempt = 0; attempt < 5; attempt++) await deliver(deps, message, later(DUE, attempt)).catch(() => { });
 
     const statuses = await listReminderStatuses(userId, { itemId });
     expect(statuses.map((r) => [r.channel, r.status]).sort()).toEqual([

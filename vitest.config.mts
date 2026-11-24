@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 
 if (existsSync(".env")) process.loadEnvFile();
 
@@ -10,6 +10,8 @@ export default defineConfig({
   },
   test: {
     environment: "node",
+    // e2e/ holds the Playwright tests (npm run test:e2e), which need a running app.
+    exclude: [...configDefaults.exclude, "e2e/**"],
     globalSetup: ["./tests/helpers/global-setup.ts"],
     // Tests use a throwaway local Postgres started by global-setup, never your Supabase database.
     // Fake secrets for the cron route and mailer tests; Resend itself is never called (fetch is stubbed).
