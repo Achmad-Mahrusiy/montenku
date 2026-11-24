@@ -585,3 +585,18 @@ Status: Usulan
 **Perbaikan yang ditemukan saat uji.** Teks `sr-only` (posisi absolut) di dalam kotak yang bisa digeser keluar dari kotak itu dan membuat seluruh halaman lebih lebar di HP (bilah navigasi bawah ikut melebar). Ini juga terjadi di tampilan Minggu kalender sejak Fase 2. Perbaikan: `relative` pada kotak geser.
 
 **Belum dibuat.** Filter per akun di dashboard (Figma tidak punya); daftar sudah menampilkan akun di setiap baris. Penanda bentrok di halaman detail konten.
+
+---
+
+## D-034 Hapus akun
+Status: Usulan
+
+**Konteks.** Fase 5 Langkah 3. Jawaban pengguna 23 Nov 2026: hapus akun memakai ketik HAPUS ditambah kata sandi. Figma: kotak "Hapus akun Montenku" di frame Pengaturan (desktop dan mobile).
+
+**Pilihan.**
+- Better Auth `deleteUser` memeriksa kata sandi, menghapus baris `user`, dan mengakhiri cookie sesi. Semua tabel kita ikut terhapus lewat `ON DELETE CASCADE` dari `user` (Fase 0), jadi tidak ada kode hapus per tabel. Pengingat yang masih di antrean tidak menemukan barisnya lagi dan tidak mengirim apa pun (D-006).
+- Lewat Server Action `deleteAccountAction`: Zod memeriksa HAPUS (huruf besar; spasi di pinggir dimaafkan) dan kata sandi, lalu rate limit 5 kali per 15 menit per pengguna. Endpoint HTTP `/delete-user` dan `/verify-password` ditutup (`disabledPaths`), jadi tidak ada jalan pintas tanpa HAPUS atau tanpa batas percobaan kata sandi.
+- Form terpisah dari "Simpan pengaturan", di bawahnya, dengan border merah seperti Figma. Mengetik HAPUS ditambah kata sandi sudah menjadi konfirmasi, jadi tidak ada dialog tambahan (Figma juga tidak punya). Kolom kata sandi ditambahkan ke desain Figma.
+- Setelah berhasil, pengguna diarahkan ke `/masuk?akun=dihapus`, yang menampilkan teks tetap "Akunmu dan semua datanya sudah dihapus."
+
+**Alasan.** Test (`tests/delete-account.test.ts`): kata sandi benar menghapus pengguna dan baris di 11 tabel (setiap tabel memang terisi dulu) tanpa menyentuh pengguna lain; kata sandi salah ditolak dengan pesan Indonesia dan tidak menghapus apa pun; kedua endpoint HTTP mengembalikan 404; skema menolak "hapus" huruf kecil dan kata sandi kosong. Uji klik hanya di Postgres lokal sementara, tidak di Supabase.

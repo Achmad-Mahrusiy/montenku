@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { indonesianTimezones } from "@/lib/validation/content-account";
+import { deleteAccountAction, type DeleteAccountState } from "@/server/actions/auth";
 import { saveUserSettingsAction, type SettingsFormState, type SettingsFormValues } from "@/server/actions/user-settings";
 
 const selectClass =
@@ -102,6 +103,49 @@ export function SettingsForm({ initial, email, otherTimezones }: Props) {
           {state.error ? <span className="text-destructive">{state.error}</span> : state.saved ? "Pengaturan tersimpan." : null}
         </p>
       </div>
+    </form>
+  );
+}
+
+// Hapus akun (D-034). Its own form, so "Simpan pengaturan" can never send it. Typing HAPUS plus the password is the
+// confirmation, so there is no extra dialog (Figma has none either).
+export function DeleteAccountForm() {
+  const [state, formAction, pending] = useActionState(deleteAccountAction, {} satisfies DeleteAccountState);
+  const errors = state.fieldErrors ?? {};
+
+  return (
+    <form action={formAction} noValidate aria-labelledby="delete-title" className="grid gap-4 rounded-xl border border-destructive bg-card p-5 sm:p-6">
+      <div>
+        <h2 id="delete-title" className="font-heading text-xl font-bold">
+          Hapus akun Montenku
+        </h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Semua akun konten, jadwal, catatan, dan pengingat ikut terhapus permanen. Pengingat yang belum terkirim dibatalkan. Ini tidak bisa dibatalkan.
+        </p>
+      </div>
+      {state.error ? (
+        <p role="alert" className="text-sm text-destructive">
+          {state.error}
+        </p>
+      ) : null}
+      <div className="grid gap-2">
+        <Label htmlFor="confirm">Ketik HAPUS untuk konfirmasi</Label>
+        <Input id="confirm" name="confirm" autoComplete="off" autoCapitalize="characters" spellCheck={false} aria-invalid={errors.confirm ? true : undefined} aria-describedby="confirm-error" />
+        <FieldError id="confirm-error" errors={errors.confirm} />
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="delete-password">Kata sandi</Label>
+        <Input id="delete-password" name="password" type="password" autoComplete="current-password" aria-invalid={errors.password ? true : undefined} aria-describedby="delete-password-error" />
+        <FieldError id="delete-password-error" errors={errors.password} />
+      </div>
+      <Button
+        type="submit"
+        variant="outline"
+        disabled={pending}
+        className="w-full border-destructive bg-destructive/10 text-destructive hover:bg-destructive/15 active:bg-destructive/20 sm:w-fit"
+      >
+        {pending ? "Menghapus..." : "Hapus akun dan semua data"}
+      </Button>
     </form>
   );
 }
