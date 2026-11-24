@@ -40,6 +40,8 @@ export default async function setup(project: TestProject) {
     persistent: false,
     // Postgres 18's I/O worker processes survive the forced stop on Windows and keep the port; sync I/O has none.
     postgresFlags: ["-c", "io_method=sync"],
+    // Like Supabase. Without this, initdb takes the Windows code page (WIN1252), which rejects emoji in titles.
+    initdbFlags: ["--encoding=UTF8", "--locale=C"],
     onLog: () => {},
   });
   await pg.initialise();

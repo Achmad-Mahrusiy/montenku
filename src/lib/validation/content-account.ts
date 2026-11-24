@@ -50,3 +50,7 @@ export const contentAccountSchema = z.object({
 export type ContentAccountInput = z.infer<typeof contentAccountSchema>;
 
 export const contentAccountIdSchema = z.uuid();
+
+// The .ics feed path segment (D-035): 32 random bytes in base64url is 43 characters, plus ".ics".
+export const feedFileSchema = z.string().regex(/^[A-Za-z0-9_-]{43}\.ics$/);
+export const feedUrl = (baseUrl: string, token: string) => `${baseUrl}/api/kalender/${token}.ics`;

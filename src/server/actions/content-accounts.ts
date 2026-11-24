@@ -1,5 +1,6 @@
 "use server";
 
+import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
@@ -9,6 +10,7 @@ import {
   archiveContentAccount,
   createContentAccount,
   restoreContentAccount,
+  setFeedToken,
   updateContentAccount,
 } from "@/server/dal/content-accounts";
 import { requireUser } from "@/server/dal/session";
@@ -86,4 +88,20 @@ export async function restoreContentAccountAction(formData: FormData) {
   const id = contentAccountIdSchema.safeParse(formData.get("id"));
   if (id.success) await restoreContentAccount(user.id, id.data);
   done();
+}
+
+/**
+ * Turns the account's .ics feed on (also "Buat tautan baru": a new token, the old link stops working) or off (D-035).
+ * Rate limited like other writes, so nobody can churn tokens in a loop.
+ */
+export async function setFeedAction(formData: FormData) {
+  const user = await requireUser();
+  const id = contentAccountIdSchema.safeParse(formData.get("id"));
+  const on = z.enum(["on", "off"]).safeParse(formData.get("feed"));
+  if (!id.success || !on.success) redirect("/akun-konten");
+  if (!(await checkLimit(limits.writeByUser, user.id))) {
+    // 32 random bytes: far too many to guess, and base64url keeps the token URL-safe.
+    await setFeedToken(user.id, id.data, on.data === "on" ? randomBytes(32).toString("base64url") : null);
+  }
+  redirect(`/akun-konten?ubah=${id.data}`);
 }

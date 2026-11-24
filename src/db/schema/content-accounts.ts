@@ -17,6 +17,8 @@ export const contentAccounts = pgTable(
     color: text("color").notNull(),
     timezone: text("timezone").notNull().default("Asia/Jakarta"),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
+    // Secret part of this account's .ics feed URL (D-035). Null = feed off. Stored as is so the link can be shown again.
+    feedToken: text("feed_token").unique(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()

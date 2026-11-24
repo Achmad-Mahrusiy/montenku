@@ -62,3 +62,18 @@ export async function restoreContentAccount(userId: string, id: string): Promise
     .returning({ id: contentAccounts.id });
   return rows.length > 0;
 }
+
+/** Turns the account's .ics feed on with a new secret token, or off with null (D-035). False when not the user's. */
+export async function setFeedToken(userId: string, id: string, token: string | null): Promise<boolean> {
+  const rows = await db.update(contentAccounts).set({ feedToken: token }).where(ownedBy(userId, id)).returning({ id: contentAccounts.id });
+  return rows.length > 0;
+}
+
+/**
+ * The one lookup by something other than userId: the feed route has no session, only the secret token. The account's
+ * own userId comes back, and every later query of the feed filters by it as usual.
+ */
+export async function getAccountByFeedToken(token: string): Promise<ContentAccount | null> {
+  const [row] = await db.select().from(contentAccounts).where(eq(contentAccounts.feedToken, token));
+  return row ?? null;
+}

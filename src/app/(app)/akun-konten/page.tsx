@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { env } from "@/lib/env";
 import { cn } from "@/lib/utils";
 import {
   accountColors,
   allTimezones,
   contentAccountIdSchema,
+  feedUrl,
   indonesianTimezones,
   platformLabels,
   timezoneLabel,
@@ -14,6 +16,7 @@ import { restoreContentAccountAction } from "@/server/actions/content-accounts";
 import { listContentAccounts, type ContentAccount } from "@/server/dal/content-accounts";
 import { requireUser } from "@/server/dal/session";
 import { AccountForm, type AccountFormValues } from "./account-form";
+import { FeedSection } from "./feed-section";
 
 export const metadata: Metadata = { title: "Akun konten | Montenku" };
 
@@ -133,6 +136,13 @@ export default async function ContentAccountsPage({ searchParams }: { searchPara
                   defaults={defaults}
                   otherTimezones={otherTimezones}
                 />
+                {editing ? (
+                  <FeedSection
+                    accountId={editing.id}
+                    accountName={editing.name}
+                    url={editing.feedToken ? feedUrl(env.BETTER_AUTH_URL, editing.feedToken) : null}
+                  />
+                ) : null}
               </>
             )}
           </section>

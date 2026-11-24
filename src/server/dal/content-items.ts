@@ -159,8 +159,8 @@ export async function listContentItems(
   return rows;
 }
 
-/** Stage deadlines due in [from, to), with their item, for the dashboard. Done or not is decided by lib/dashboard. */
-export async function listDeadlines(userId: string, range: { from: Date; to: Date }): Promise<DeadlineRow[]> {
+/** Stage deadlines due in [from, to), with their item, for the dashboard and the .ics feed. Done or not is decided by lib/dashboard. */
+export async function listDeadlines(userId: string, range: { from: Date; to: Date; accountIds?: string[] }): Promise<DeadlineRow[]> {
   const rows = await db
     .select({
       itemId: contentItems.id,
@@ -173,7 +173,14 @@ export async function listDeadlines(userId: string, range: { from: Date; to: Dat
     .from(itemStageDeadlines)
     .innerJoin(contentItems, eq(contentItems.id, itemStageDeadlines.itemId))
     .innerJoin(contentAccounts, eq(contentAccounts.id, contentItems.accountId))
-    .where(and(eq(itemStageDeadlines.userId, userId), gte(itemStageDeadlines.dueAt, range.from), lt(itemStageDeadlines.dueAt, range.to)));
+    .where(
+      and(
+        eq(itemStageDeadlines.userId, userId),
+        gte(itemStageDeadlines.dueAt, range.from),
+        lt(itemStageDeadlines.dueAt, range.to),
+        range.accountIds?.length ? inArray(contentItems.accountId, range.accountIds) : undefined,
+      ),
+    );
   // The DB check constraint guarantees only deadline stages are stored.
   return rows.map((r) => ({ ...r, stage: r.stage as DeadlineStage }));
 }

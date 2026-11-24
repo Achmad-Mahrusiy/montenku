@@ -600,3 +600,25 @@ Status: Usulan
 - Setelah berhasil, pengguna diarahkan ke `/masuk?akun=dihapus`, yang menampilkan teks tetap "Akunmu dan semua datanya sudah dihapus."
 
 **Alasan.** Test (`tests/delete-account.test.ts`): kata sandi benar menghapus pengguna dan baris di 11 tabel (setiap tabel memang terisi dulu) tanpa menyentuh pengguna lain; kata sandi salah ditolak dengan pesan Indonesia dan tidak menghapus apa pun; kedua endpoint HTTP mengembalikan 404; skema menolak "hapus" huruf kecil dan kata sandi kosong. Uji klik hanya di Postgres lokal sementara, tidak di Supabase.
+
+---
+
+## D-035 Langganan kalender (.ics) per akun konten
+Status: Usulan
+
+**Konteks.** Fase 6 Langkah 1. Fase 6 bersifat opsional di brief. Jawaban pengguna 24 Nov 2026: buat dua-duanya, feed .ics dan Web Push. Isi feed: posting, slot jadwal kosong, **dan** tenggat tahap. Push dan email masing-masing punya tombol sendiri. Fase 6 dibagi tiga langkah: (1) feed .ics, (2) mesin Web Push (skema, pengiriman, test), (3) UI push dan PWA (service worker, manifest, tombol di Pengaturan). Figma tidak punya frame untuk bagian ini.
+
+**Pilihan.**
+- **Satu tautan rahasia per akun konten**, `/api/kalender/<token>.ics`. Token berisi 32 byte acak (base64url, 43 karakter), jadi tidak mungkin ditebak. Tautan bisa dibuat, dibuat ulang (tautan lama langsung mati), dan dimatikan dari panel Ubah di halaman Akun konten. Ada juga tombol "Buka di aplikasi kalender" (`webcal://`).
+- **Token disimpan apa adanya, tidak di-hash.** Token hanya membuka data yang tersimpan di database yang sama, jadi hash hampir tidak melindungi apa pun. Hash juga membuat tautan tidak bisa ditampilkan lagi tanpa membuat yang baru, dan itu memutus kalender yang sudah berlangganan. Google Calendar memakai pola yang sama ("alamat rahasia" yang bisa dilihat kapan saja). Kolom `feed_token` di `content_accounts` (unik, null berarti mati), jadi tidak perlu tabel baru.
+- **Route tanpa sesi.** Satu-satunya query yang tidak memfilter `user_id` adalah pencarian akun berdasarkan token. Setelah itu semua query feed memakai `user_id` dan `account_id` akun tersebut, lewat fungsi DAL yang sudah ada. Token dicek dengan Zod sebelum menyentuh database. Alamat yang salah bentuk, tidak dikenal, sudah dibuat ulang, atau dimatikan semuanya memberi 404 yang sama. Kode kita tidak pernah mencatat token di log, tapi token ada di alamat URL, jadi log akses server (`next dev`, Vercel) tetap menampilkannya. Tidak ada rate limit per IP di feed: layanan kalender memakai IP bersama, dan token tidak bisa ditebak.
+- **Isi feed:** posting akun itu, slot kosong jadwal berulang (dihitung dengan `scheduleSlots()` yang sama dengan kalender, sehingga lewati, geser, dan slot terisi sudah benar), dan tenggat tahap yang **belum selesai**. Tenggat yang sudah lewat tahapnya tidak ditampilkan karena tidak ada lagi yang perlu dikerjakan. Akun yang diarsipkan tetap melayani feed-nya, tapi tanpa slot baru (sama dengan kalender).
+- **Format ditulis sendiri** di `src/lib/ics.ts`, tanpa library: CRLF, lipat baris per 75 byte (bukan karakter, supaya emoji tidak terpotong), escape `\ ; ,` dan baris baru, UID tetap per acara (item, jadwal + kunci kemunculan, item + tahap) supaya acara tidak berlipat saat sinkron. Semua waktu dalam UTC (`Z`), jadi tidak butuh blok VTIMEZONE. Setiap acara 30 menit.
+- Tidak memakai `RRULE` di feed: pengecualian, slot yang digeser, dan slot terisi membuat aturan mentah salah. Kemunculan dihitung satu per satu.
+- *Shortcut:* feed hanya mencakup 90 hari ke belakang dan 365 hari ke depan.
+
+**Temuan dan perbaikan (sejak Fase 1).** Postgres sementara untuk test dibuat dengan code page Windows (WIN1252), jadi tidak bisa menyimpan emoji, sementara Supabase memakai UTF-8. `tests/helpers/global-setup.ts` sekarang memakai `--encoding=UTF8`.
+
+**Alasan.** Test (`tests/calendar-feed.test.ts`): format (CRLF, lipat baris dengan emoji, escape, UTC), isi feed (posting, slot, tenggat terbuka, tenggat selesai tidak ikut), UID sama di setiap pengambilan, isolasi (akun lain milik pengguna yang sama dan data pengguna lain tidak ikut, pengguna lain tidak bisa mengganti atau mematikan tautan), tautan lama mati setelah dibuat ulang atau dimatikan, alamat salah bentuk memberi 404, dan tautan mati setelah hapus akun. Uji mutasi: menghapus filter akun pada tenggat membuat test gagal.
+
+**Belum terverifikasi sampai deploy (Fase 7).** Berlangganan langsung dari Google Calendar, karena Google tidak bisa membaca `localhost`.
