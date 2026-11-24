@@ -558,3 +558,30 @@ Status: Usulan
 **Temuan dan perbaikan (bug sejak Fase 2).** Setelah Server Action selesai, React mereset form ke nilai bawaan, tapi `<select>` kembali ke opsi yang dirender pertama kali (perubahan `defaultValue` berikutnya diabaikan). Akibatnya, setelah konten dipindah ke akun lain dan disimpan, pilihan akun masih menampilkan akun lama, dan simpan berikutnya memindahkannya kembali. Pengaturan zona waktu punya masalah yang sama. Perbaikan: `key` pada `<form>` dari nilai yang ditampilkan, sehingga form dibuat ulang saat nilainya berubah. Diuji di browser untuk form konten dan Pengaturan.
 
 **Alasan.** Mengikuti desain pengingat yang sudah disetujui (satu tabel sumber kebenaran, `reconcile()` sebagai satu-satunya pengubah jadwal). Test: kasus jam senyap (melewati tengah malam, selesai tepat di waktu posting, melewati posting, siang hari, mulai = selesai, DST New York), email mati/nyala, isolasi antar pengguna. Uji mutasi: menghapus salah satu dari dua pemeriksaan "email mati" membuat satu test gagal.
+
+---
+
+## D-033 Dashboard Hari ini / Minggu ini dan deteksi bentrok
+Status: Usulan
+
+**Konteks.** Fase 5 Langkah 2. Brief: dashboard "Hari ini" dan "Minggu ini" (apa yang harus diproduksi/diposting per akun, tenggat yang mendekat, yang terlambat) dan peringatan jika dua posting dalam satu akun dijadwalkan di jam yang sama. Figma: frame Dashboard Hari ini (desktop dan mobile); tanda Bentrok juga ada di frame Kalender Bulan, Minggu, dan Daftar.
+
+**Pilihan: bentrok.**
+- Dihitung di `findClashes()` (`src/lib/calendar.ts`): dua atau lebih posting **akun yang sama** di **menit yang sama** (Q4). Waktu dibulatkan ke menit, jadi beda detik tetap bentrok. Satu akun punya satu zona, jadi menit yang sama berarti jam dinding yang sama.
+- Slot jadwal yang masih kosong ikut dihitung (jawaban pengguna 23 Nov 2026). Slot yang sudah diisi tidak, karena `scheduleSlots()` sudah menggantinya dengan itemnya; slot yang dilewati juga tidak; slot yang digeser dihitung di jam barunya.
+- Semua status ikut dihitung, termasuk Terposting, dan item di akun yang diarsipkan (sama dengan yang tampil di kalender).
+- Tampil di: dashboard (maksimal 3 peringatan, sisanya "Ada N bentrok lain"), kalender (baris peringatan di atas kalender, label "Bentrok" di hari itu, border kuning tua di chip/kartu), dan strip Minggu ini. Peringatan, bukan error, jadi kuning tua, bukan merah (desain-ui.md).
+- *Shortcut:* dashboard mencari bentrok sampai 30 hari ke depan. Bentrok yang lebih jauh baru muncul saat masuk jendela itu (atau terlihat di kalender bulan itu).
+
+**Pilihan: dashboard.**
+- "Hari ini" dan "Minggu ini" (Senin sampai Minggu, sama dengan Kalender) memakai zona waktu pengguna (D-032); tiap posting tetap di tanggal dan jam zona akunnya (D-022). Tab disimpan di URL (`?tampilan=minggu`, divalidasi Zod; nilai lain kembali ke Hari ini). Tab Minggu ini tidak punya frame Figma: isinya bagian yang sama, dengan daftar posting dikelompokkan per hari.
+- **Terlambat:** tenggat tahap yang lewat dan belum dilewati statusnya, serta waktu posting yang lewat tanpa status Terposting. **Satu baris per konten**: yang paling awal, karena naskah yang terlambat biasanya menjelaskan keterlambatan berikutnya. Posting yang terlewat hari ini muncul di daftar posting **dan** di Terlambat. *Shortcut:* hanya 30 hari ke belakang.
+- **Tenggat mendekat:** tenggat tahap yang terbuka dalam 7 hari ke depan, satu per konten, tanpa konten yang sudah terlambat.
+- Aturan "tahap selesai" (status sudah melewati tahap itu) dipindah ke `isStageDone()` dan dipakai bersama oleh halaman konten dan dashboard.
+- **Pengingat di tiap posting:** yang gagal dulu, lalu yang berikutnya terjadwal, lalu yang terakhir terkirim. Jamnya `send_at` baris itu (setelah jam senyap), di zona akun.
+- **Peringatan gagal kirim** tampil sampai 24 jam setelah waktu posting; setelah itu hanya di halaman konten (tombol Kirim ulang ada di sana).
+- Setiap query baru memfilter `user_id` dan punya test isolasi.
+
+**Perbaikan yang ditemukan saat uji.** Teks `sr-only` (posisi absolut) di dalam kotak yang bisa digeser keluar dari kotak itu dan membuat seluruh halaman lebih lebar di HP (bilah navigasi bawah ikut melebar). Ini juga terjadi di tampilan Minggu kalender sejak Fase 2. Perbaikan: `relative` pada kotak geser.
+
+**Belum dibuat.** Filter per akun di dashboard (Figma tidak punya); daftar sudah menampilkan akun di setiap baris. Penanda bentrok di halaman detail konten.

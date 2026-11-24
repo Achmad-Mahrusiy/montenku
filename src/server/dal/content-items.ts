@@ -1,6 +1,7 @@
-import { and, asc, eq, gte, inArray, lt } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, lt, ne } from "drizzle-orm";
 import { db } from "@/db";
 import { contentAccounts, contentItems, itemStageDeadlines, notes } from "@/db/schema";
+import type { DeadlineRow, LatePostRow } from "@/lib/dashboard";
 import { wallTimeToInstant } from "@/lib/time";
 import { deadlineStages, type ContentItemInput, type DeadlineStage } from "@/lib/validation/content-item";
 
@@ -10,7 +11,9 @@ export type ContentItem = typeof contentItems.$inferSelect;
 export type Note = typeof notes.$inferSelect;
 type Account = Pick<typeof contentAccounts.$inferSelect, "id" | "name" | "color" | "timezone" | "archivedAt">;
 export type ContentItemDetail = ContentItem & { account: Account; deadlines: { stage: DeadlineStage; dueAt: Date }[] };
-export type CalendarItem = Pick<ContentItem, "id" | "title" | "status" | "targetAt"> & { account: Omit<Account, "archivedAt"> };
+export type CalendarItem = Pick<ContentItem, "id" | "title" | "status" | "targetAt" | "scheduleId" | "occurrenceKey"> & {
+  account: Omit<Account, "archivedAt">;
+};
 
 const accountColumns = {
   id: contentAccounts.id,
@@ -125,6 +128,8 @@ export async function getContentItem(userId: string, id: string): Promise<Conten
   };
 }
 
+const itemAccount = { id: contentAccounts.id, name: contentAccounts.name, color: contentAccounts.color, timezone: contentAccounts.timezone };
+
 /** Items with target time in [from, to), optionally for some accounts only. For the calendar. */
 export async function listContentItems(
   userId: string,
@@ -136,7 +141,9 @@ export async function listContentItems(
       title: contentItems.title,
       status: contentItems.status,
       targetAt: contentItems.targetAt,
-      account: { id: contentAccounts.id, name: contentAccounts.name, color: contentAccounts.color, timezone: contentAccounts.timezone },
+      scheduleId: contentItems.scheduleId,
+      occurrenceKey: contentItems.occurrenceKey,
+      account: itemAccount,
     })
     .from(contentItems)
     .innerJoin(contentAccounts, eq(contentAccounts.id, contentItems.accountId))
@@ -150,6 +157,34 @@ export async function listContentItems(
     )
     .orderBy(asc(contentItems.targetAt), asc(contentItems.createdAt));
   return rows;
+}
+
+/** Stage deadlines due in [from, to), with their item, for the dashboard. Done or not is decided by lib/dashboard. */
+export async function listDeadlines(userId: string, range: { from: Date; to: Date }): Promise<DeadlineRow[]> {
+  const rows = await db
+    .select({
+      itemId: contentItems.id,
+      title: contentItems.title,
+      status: contentItems.status,
+      account: itemAccount,
+      stage: itemStageDeadlines.stage,
+      dueAt: itemStageDeadlines.dueAt,
+    })
+    .from(itemStageDeadlines)
+    .innerJoin(contentItems, eq(contentItems.id, itemStageDeadlines.itemId))
+    .innerJoin(contentAccounts, eq(contentAccounts.id, contentItems.accountId))
+    .where(and(eq(itemStageDeadlines.userId, userId), gte(itemStageDeadlines.dueAt, range.from), lt(itemStageDeadlines.dueAt, range.to)));
+  // The DB check constraint guarantees only deadline stages are stored.
+  return rows.map((r) => ({ ...r, stage: r.stage as DeadlineStage }));
+}
+
+/** Items whose posting time is in [from, to) but are not marked "Terposting". */
+export async function listLatePostings(userId: string, range: { from: Date; to: Date }): Promise<LatePostRow[]> {
+  return db
+    .select({ itemId: contentItems.id, title: contentItems.title, status: contentItems.status, account: itemAccount, targetAt: contentItems.targetAt })
+    .from(contentItems)
+    .innerJoin(contentAccounts, eq(contentAccounts.id, contentItems.accountId))
+    .where(and(eq(contentItems.userId, userId), ne(contentItems.status, "posted"), gte(contentItems.targetAt, range.from), lt(contentItems.targetAt, range.to)));
 }
 
 // --- Notes (several per item) ---

@@ -4,8 +4,9 @@ import { useActionState, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { StatusTrack } from "@/components/status-track";
 import { cn } from "@/lib/utils";
-import { contentStatuses, deadlineStages, statusLabels, type ContentStatus } from "@/lib/validation/content-item";
+import { contentStatuses, deadlineStages, isStageDone, statusLabels, type ContentStatus } from "@/lib/validation/content-item";
 import { saveContentItemAction, type ContentItemFormState, type ItemFormField } from "@/server/actions/content-items";
 
 export type AccountOption = { id: string; name: string; color: string; timezoneLabel: string; archived: boolean };
@@ -61,7 +62,6 @@ export function ItemForm({ itemId, initial, accounts, deadlines, heading, extraA
   const [status, setStatus] = useState<ContentStatus>(contentStatuses.find((s) => s === values.status) ?? "idea");
   const [accountId, setAccountId] = useState(values.accountId);
   const account = accounts.find((a) => a.id === accountId);
-  const step = contentStatuses.indexOf(status) + 1;
 
   const saveButton = (
     // form="item-form": the button sits outside the form element (next to the title, as in Figma).
@@ -189,14 +189,7 @@ export function ItemForm({ itemId, initial, accounts, deadlines, heading, extraA
           <h2 id="status-title" className="font-heading text-xl font-bold">
             Status produksi
           </h2>
-          <div aria-hidden="true" className="mt-3 flex gap-1">
-            {contentStatuses.map((s, i) => (
-              <span key={s} className={cn("h-1.5 w-6 rounded-full", i < step ? "bg-foreground" : "bg-border")} />
-            ))}
-          </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {statusLabels[status]} ({step}/{contentStatuses.length})
-          </p>
+          <StatusTrack status={status} className="mt-3" />
         </div>
 
         <fieldset aria-describedby="status-error">
@@ -227,7 +220,7 @@ export function ItemForm({ itemId, initial, accounts, deadlines, heading, extraA
           <ul className="mt-2 divide-y border-t">
             {deadlineStages.map((stage) => {
               const field = `deadline_${stage}` as const;
-              const done = contentStatuses.indexOf(status) > contentStatuses.indexOf(stage);
+              const done = isStageDone(status, stage);
               const label = dueLabel(deadlines.dueAt[field], done, deadlines.now);
               return (
                 <li key={stage} className="grid gap-2 py-3 sm:grid-cols-[110px_1fr_auto] sm:items-center sm:gap-4">

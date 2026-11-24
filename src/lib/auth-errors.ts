@@ -7,6 +7,7 @@ const messages: Record<string, string> = {
   PASSWORD_TOO_SHORT: "Kata sandi minimal 8 karakter.",
   PASSWORD_TOO_LONG: "Kata sandi maksimal 128 karakter.",
   INVALID_EMAIL: "Format email belum benar.",
+  INVALID_PASSWORD: "Kata sandi salah.",
 };
 
 // Better Auth errors are in English; show the user an Indonesian message and never the raw error.

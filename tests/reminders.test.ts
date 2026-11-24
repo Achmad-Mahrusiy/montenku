@@ -8,7 +8,9 @@ import { createContentItem, deleteContentItem, updateContentItem } from "@/serve
 import {
   addReminderSetting,
   listReminderSettings,
+  listFailedReminders,
   listReminderStatuses,
+  listReminderSummaries,
   removeReminderSetting,
   retryFailedReminder,
 } from "@/server/dal/reminder-settings";
@@ -406,5 +408,30 @@ describe("Pengaturan: email mati dan jam senyap (D-032)", () => {
     await reconcile(f.deps, { now: DAY_BEFORE });
     expect(await rowsOf(alice.userId)).toEqual([]);
     expect((await rowsOf(bob.userId))[0]?.status).toBe("pending");
+  });
+});
+
+describe("query dashboard: pengingat (D-033)", () => {
+  it("ringkasan pengingat per item dan pengingat gagal, hanya milik sendiri", async () => {
+    const f = fakes();
+    const alice = await setup();
+    const bob = await setup();
+    await addReminderSetting(alice.userId, { itemId: alice.itemId }, 120);
+    await addReminderSetting(bob.userId, { itemId: bob.itemId }, 120);
+    await reconcile(f.deps, { now: DAY_BEFORE });
+    await db.update(reminders).set({ status: "failed" }).where(eq(reminders.userId, alice.userId));
+
+    const both = { itemIds: [alice.itemId, bob.itemId], scheduleIds: [] };
+    expect(await listReminderSummaries(alice.userId, both)).toEqual([
+      expect.objectContaining({ itemId: alice.itemId, offsetMinutes: 120, status: "failed", sendAt: DUE }),
+    ]);
+    expect(await listReminderSummaries(alice.userId, { itemIds: [], scheduleIds: [] })).toEqual([]);
+
+    expect(await listFailedReminders(alice.userId, DAY_BEFORE)).toEqual([
+      expect.objectContaining({ offsetMinutes: 120, title: "Resep nasi goreng", accountName: "Masak Hemat", href: `/konten/${alice.itemId}` }),
+    ]);
+    // Older than the cut-off: no longer on the dashboard (it stays on the item page).
+    expect(await listFailedReminders(alice.userId, later(DUE, 24 * 60))).toEqual([]);
+    expect(await listFailedReminders(bob.userId, DAY_BEFORE)).toEqual([]);
   });
 });

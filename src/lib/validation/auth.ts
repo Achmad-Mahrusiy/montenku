@@ -13,3 +13,9 @@ export const signUpSchema = z.object({
   // Same limits as Better Auth's defaults (8 to 128), so the form catches it before the server does.
   password: z.string().min(8, "Kata sandi minimal 8 karakter").max(128, "Kata sandi maksimal 128 karakter"),
 });
+
+// Hapus akun (D-034): the user types HAPUS and their password. Spaces around HAPUS are forgiven, lowercase is not.
+export const deleteAccountSchema = z.object({
+  confirm: z.string().trim().pipe(z.literal("HAPUS", "Ketik HAPUS dengan huruf besar untuk konfirmasi")),
+  password: z.string().min(1, "Kata sandi wajib diisi").max(128, "Kata sandi maksimal 128 karakter"),
+});

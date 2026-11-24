@@ -16,6 +16,9 @@ export const statusLabels: Record<ContentStatus, string> = {
 export const deadlineStages = ["script", "production", "editing", "ready"] as const;
 export type DeadlineStage = (typeof deadlineStages)[number];
 
+/** A stage's deadline is met once the item has moved past that stage (the item page and dashboard agree on this). */
+export const isStageDone = (status: ContentStatus, stage: DeadlineStage) => contentStatuses.indexOf(status) > contentStatuses.indexOf(stage);
+
 const MAX_TAGS = 10;
 
 // "resep, hemat, Resep , " -> ["resep", "hemat"]: trimmed, empty parts dropped, duplicates (any case) removed.

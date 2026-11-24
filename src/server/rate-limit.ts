@@ -29,6 +29,8 @@ export const limits = {
   signUpByIp: make("sign-up:ip", 5, "1 h"),
   // One shared quota for saving content accounts and content items ("pembuatan item" in the brief).
   writeByUser: make("write:user", 30, "1 m"),
+  // Deleting the account checks the password, so it is limited like a sign-in.
+  deleteAccountByUser: make("delete-account:user", 5, "15 m"),
 };
 
 /**

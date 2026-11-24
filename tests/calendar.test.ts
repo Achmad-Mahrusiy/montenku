@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { placeOnCalendar, scheduleSlots } from "@/lib/calendar";
+import { describeClash, findClashes, placeOnCalendar, scheduleSlots } from "@/lib/calendar";
 
 const jakarta = { id: "a", name: "Masak Hemat", color: "#e4572e", timezone: "Asia/Jakarta" };
 const tokyo = { id: "b", name: "Kota Tokyo", color: "#2f6fdb", timezone: "Asia/Tokyo" };
@@ -57,5 +57,72 @@ describe("slot jadwal berulang di kalender", () => {
   it("akun yang diarsipkan tidak menghasilkan slot baru", () => {
     const archived = { ...schedule, account: { ...schedule.account, archivedAt: new Date() } };
     expect(scheduleSlots([archived], [], ...window)).toEqual([]);
+  });
+});
+
+describe("deteksi bentrok (D-033)", () => {
+  // Fri 27 Nov 2026 19:00 WIB = 12:00Z.
+  const AT = "2026-11-27T12:00:00Z";
+  const ids = (items: Parameters<typeof findClashes>[0]) => findClashes(items).map((c) => c.entries.map((e) => e.id).sort());
+
+  it("dua item satu akun di menit yang sama bentrok, termasuk beda detik", () => {
+    expect(ids([item("sop", AT), item("teh", "2026-11-27T12:00:42Z"), item("lain", "2026-11-27T12:01:00Z")])).toEqual([["sop", "teh"]]);
+  });
+
+  it("menit yang sama di akun berbeda tidak bentrok", () => {
+    expect(findClashes([item("a", AT), item("b", AT, tokyo)])).toEqual([]);
+  });
+
+  it("slot kosong ikut dihitung: item vs slot, dan dua jadwal di jam yang sama", () => {
+    const fridays = (id: string) => ({
+      id,
+      title: `Jadwal ${id}`,
+      rrule: "FREQ=WEEKLY;BYDAY=FR",
+      dtstartLocal: "2026-11-06T19:00",
+      account: { ...jakarta, archivedAt: null },
+      exceptions: [],
+    });
+    const window = [new Date("2026-11-27T00:00:00Z"), new Date("2026-11-28T00:00:00Z")] as const;
+    expect(ids([item("sop", AT), ...scheduleSlots([fridays("s1")], [], ...window)])).toEqual([["s1:2026-11-27T19:00", "sop"]]);
+    expect(ids(scheduleSlots([fridays("s1"), fridays("s2")], [], ...window))).toEqual([["s1:2026-11-27T19:00", "s2:2026-11-27T19:00"]]);
+  });
+
+  it("slot yang sudah diisi tidak bentrok dengan item pengisinya; slot yang dilewati tidak dihitung", () => {
+    const schedule = {
+      id: "s1",
+      title: "Upload",
+      rrule: "FREQ=WEEKLY;BYDAY=FR",
+      dtstartLocal: "2026-11-06T19:00",
+      account: { ...jakarta, archivedAt: null },
+      exceptions: [] as { occurrenceKey: string; kind: "skip" | "move"; movedToLocal: string | null }[],
+    };
+    const window = [new Date("2026-11-27T00:00:00Z"), new Date("2026-11-28T00:00:00Z")] as const;
+    const filled = [{ scheduleId: "s1", occurrenceKey: "2026-11-27T19:00" }];
+    expect(findClashes([item("isi", AT), ...scheduleSlots([schedule], filled, ...window)])).toEqual([]);
+    const skipped = { ...schedule, exceptions: [{ occurrenceKey: "2026-11-27T19:00", kind: "skip" as const, movedToLocal: null }] };
+    expect(findClashes([item("sop", AT), ...scheduleSlots([skipped], [], ...window)])).toEqual([]);
+  });
+
+  it("kemunculan yang digeser ke jam sebuah item jadi bentrok", () => {
+    const moved = {
+      id: "s1",
+      title: "Upload",
+      rrule: "FREQ=WEEKLY;BYDAY=TH",
+      dtstartLocal: "2026-11-05T19:00",
+      account: { ...jakarta, archivedAt: null },
+      exceptions: [{ occurrenceKey: "2026-11-26T19:00", kind: "move" as const, movedToLocal: "2026-11-27T19:00" }],
+    };
+    const window = [new Date("2026-11-25T00:00:00Z"), new Date("2026-11-28T00:00:00Z")] as const;
+    expect(ids([item("sop", AT), ...scheduleSlots([moved], [], ...window)])).toEqual([["s1:2026-11-26T19:00", "sop"]]);
+  });
+
+  it("kalender menandai entri yang bentrok, dan pesannya memakai jam zona akun", () => {
+    const days = placeOnCalendar([item("sop", AT), item("teh", AT), item("pagi", "2026-11-27T00:00:00Z")]);
+    expect(days.get("2026-11-27")?.map((e) => [e.title, e.clash])).toEqual([
+      ["pagi", false],
+      ["sop", true],
+      ["teh", true],
+    ]);
+    expect(describeClash(findClashes([item("sop", AT), item("teh", AT)])[0]!)).toBe("Masak Hemat punya 2 posting di Jumat, 27 Nov, 19:00 WIB");
   });
 });

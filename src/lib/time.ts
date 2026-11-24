@@ -67,6 +67,11 @@ export function addDays(date: string, days: number): string {
   return Temporal.PlainDate.from(date).add({ days }).toString();
 }
 
+/** Whole calendar days from `from` to `to` ("2026-11-21" to "2026-11-23" = 2). */
+export function daysBetween(from: string, to: string): number {
+  return Temporal.PlainDate.from(from).until(to).days;
+}
+
 /** Jan 31 + 1 month = Feb 28 (clamped), never Mar 3. */
 export function addMonths(date: string, months: number): string {
   return Temporal.PlainDate.from(date).add({ months }).toString();

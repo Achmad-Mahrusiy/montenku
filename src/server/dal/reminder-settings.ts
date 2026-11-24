@@ -1,6 +1,6 @@
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, or } from "drizzle-orm";
 import { db } from "@/db";
-import { contentItems, reminderSettings, reminders, schedules } from "@/db/schema";
+import { contentAccounts, contentItems, reminderSettings, reminders, schedules } from "@/db/schema";
 
 // Which reminders a user wants: "2 hours before" on one item, or on every occurrence of a schedule.
 // Every query filters by the owner's userId (D-008); the composite foreign keys refuse someone else's target too.
@@ -83,4 +83,66 @@ export async function retryFailedReminder(userId: string, reminderId: string): P
     .where(and(eq(reminders.id, reminderId), eq(reminders.userId, userId), eq(reminders.status, "failed")))
     .returning({ id: reminders.id });
   return rows.length > 0;
+}
+
+export type ReminderSummary = Pick<ReminderStatusRow, "occurrenceKey" | "sendAt" | "status"> & {
+  itemId: string | null;
+  scheduleId: string | null;
+  offsetMinutes: number;
+};
+
+/** Reminder rows of these items and schedules in one query, for the reminder line on the dashboard. */
+export async function listReminderSummaries(userId: string, ids: { itemIds: string[]; scheduleIds: string[] }): Promise<ReminderSummary[]> {
+  if (ids.itemIds.length === 0 && ids.scheduleIds.length === 0) return [];
+  return db
+    .select({
+      itemId: reminderSettings.itemId,
+      scheduleId: reminderSettings.scheduleId,
+      offsetMinutes: reminderSettings.offsetMinutes,
+      occurrenceKey: reminders.occurrenceKey,
+      sendAt: reminders.sendAt,
+      status: reminders.status,
+    })
+    .from(reminders)
+    .innerJoin(reminderSettings, eq(reminderSettings.id, reminders.reminderSettingId))
+    .where(
+      and(
+        eq(reminders.userId, userId),
+        or(
+          ids.itemIds.length ? inArray(reminderSettings.itemId, ids.itemIds) : undefined,
+          ids.scheduleIds.length ? inArray(reminderSettings.scheduleId, ids.scheduleIds) : undefined,
+        ),
+      ),
+    );
+}
+
+export type FailedReminder = { id: string; offsetMinutes: number; title: string; accountName: string; href: string };
+
+/** Failed reminders whose posting time is after `since`, for the dashboard alert. Newest posting first. */
+export async function listFailedReminders(userId: string, since: Date): Promise<FailedReminder[]> {
+  const rows = await db
+    .select({
+      id: reminders.id,
+      offsetMinutes: reminderSettings.offsetMinutes,
+      itemId: reminderSettings.itemId,
+      itemTitle: contentItems.title,
+      scheduleId: reminderSettings.scheduleId,
+      scheduleTitle: schedules.title,
+      accountName: contentAccounts.name,
+    })
+    .from(reminders)
+    .innerJoin(reminderSettings, eq(reminderSettings.id, reminders.reminderSettingId))
+    .leftJoin(contentItems, eq(contentItems.id, reminderSettings.itemId))
+    .leftJoin(schedules, eq(schedules.id, reminderSettings.scheduleId))
+    .innerJoin(contentAccounts, or(eq(contentAccounts.id, contentItems.accountId), eq(contentAccounts.id, schedules.accountId)))
+    .where(and(eq(reminders.userId, userId), eq(reminders.status, "failed"), gte(reminders.targetAt, since)))
+    .orderBy(desc(reminders.targetAt));
+  // Each failed row has its "Kirim ulang" button on the item page, or in the schedule editor.
+  return rows.map((r) => ({
+    id: r.id,
+    offsetMinutes: r.offsetMinutes,
+    title: r.itemTitle ?? r.scheduleTitle ?? "",
+    accountName: r.accountName,
+    href: r.itemId ? `/konten/${r.itemId}` : `/jadwal?ubah=${r.scheduleId}`,
+  }));
 }

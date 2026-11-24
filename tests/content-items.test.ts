@@ -11,6 +11,8 @@ import {
   deleteContentItem,
   deleteNote,
   getContentItem,
+  listDeadlines,
+  listLatePostings,
   listContentItems,
   listNotes,
   updateContentItem,
@@ -201,5 +203,31 @@ describe("isolasi antar-pengguna", () => {
     await expect(
       db.insert(itemStageDeadlines).values({ userId: bob, itemId: item!.id, stage: "script", dueAt: new Date() }),
     ).rejects.toThrow();
+  });
+});
+
+describe("query dashboard: tenggat dan posting terlambat", () => {
+  // A year no other test uses, so the range queries only see these rows.
+  const range = { from: new Date("2031-01-01T00:00:00Z"), to: new Date("2031-02-01T00:00:00Z") };
+
+  it("tenggat dalam rentang beserta status dan akunnya; milik pengguna lain tidak ikut", async () => {
+    const item = await createContentItem(alice, base(aliceJakarta, { targetWallTime: "2031-01-20T19:00", deadlines: { script: "2031-01-10T10:00" } }));
+    await createContentItem(bob, base(bobAccount, { targetWallTime: "2031-01-20T19:00", deadlines: { script: "2031-01-10T10:00" } }));
+
+    expect(await listDeadlines(alice, range)).toEqual([
+      expect.objectContaining({ itemId: item!.id, status: "idea", stage: "script", dueAt: new Date("2031-01-10T03:00:00Z"), account: expect.objectContaining({ name: "Jakarta" }) }),
+    ]);
+    expect((await listDeadlines(bob, range)).map((d) => d.itemId)).not.toContain(item!.id);
+  });
+
+  it("posting yang lewat tanpa status Terposting; yang terposting dan milik orang lain tidak ikut", async () => {
+    const late = await createContentItem(alice, base(aliceJakarta, { targetWallTime: "2031-01-15T19:00", status: "ready" }));
+    await createContentItem(alice, base(aliceJakarta, { targetWallTime: "2031-01-15T19:00", status: "posted" }));
+    const bobs = await createContentItem(bob, base(bobAccount, { targetWallTime: "2031-01-15T19:00" }));
+
+    const ids = (await listLatePostings(alice, range)).map((p) => p.itemId);
+    expect(ids).toContain(late!.id);
+    expect(ids).not.toContain(bobs!.id);
+    expect((await listLatePostings(alice, range)).every((p) => p.status !== "posted")).toBe(true);
   });
 });

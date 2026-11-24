@@ -14,12 +14,22 @@ export const dayNumber = (date: string) => Number(date.slice(8, 10));
 
 type Days = Map<string, CalendarEntry[]>;
 
-/** A light tint of the account color for items; a dashed outline in that color for empty schedule slots (Figma). */
-const entryStyle = (entry: CalendarEntry) =>
-  entry.slotOf ? { borderColor: entry.color, background: "var(--card)" } : { background: `color-mix(in srgb, ${entry.color} 14%, var(--card))` };
+/**
+ * A light tint of the account color for items; a dashed outline in that color for empty schedule slots (Figma).
+ * A clash (D-033) gets the dark-yellow warning border instead, as in the Figma calendar.
+ */
+const entryStyle = (entry: CalendarEntry) => ({
+  ...(entry.slotOf ? { borderColor: entry.color, background: "var(--card)" } : { background: `color-mix(in srgb, ${entry.color} 14%, var(--card))` }),
+  ...(entry.clash ? { borderColor: "var(--warning)" } : {}),
+});
+
+/** "Bentrok" next to a day that has one (Figma month and list views). */
+export function ClashLabel() {
+  return <span className="text-xs font-semibold text-warning">Bentrok</span>;
+}
 
 /** One entry: account color dot, time in its account's zone, title. Links to the item, or to the schedule for a slot. */
-function EntryChip({ entry, className }: { entry: CalendarEntry; className?: string }) {
+export function EntryChip({ entry, className }: { entry: CalendarEntry; className?: string }) {
   return (
     <Link
       href={entry.href}
@@ -27,6 +37,7 @@ function EntryChip({ entry, className }: { entry: CalendarEntry; className?: str
       className={cn(
         "flex min-h-7 min-w-0 items-center gap-1.5 rounded-md px-2 py-1 text-xs outline-none hover:brightness-95 focus-visible:ring-3 focus-visible:ring-ring/50",
         entry.slotOf && "border border-dashed",
+        entry.clash && "border-2",
         className,
       )}
     >
@@ -38,6 +49,7 @@ function EntryChip({ entry, className }: { entry: CalendarEntry; className?: str
       <span className="truncate font-semibold">{entry.title}</span>
       <span className="sr-only">
         {entry.slotOf ? `, jadwal ${entry.slotOf}` : null}, {entry.accountName}
+        {entry.clash ? ", bentrok dengan posting lain di jam yang sama" : null}
       </span>
     </Link>
   );
@@ -102,7 +114,7 @@ export function MonthView({
                     className="flex h-full flex-col items-start gap-1 rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50 sm:hidden"
                     aria-label={`${dayHeading.format(asUtc(date))}, ${entries.filter((e) => !e.slotOf).length} konten${
                       entries.some((e) => e.slotOf) ? `, ${entries.filter((e) => e.slotOf).length} slot kosong` : ""
-                    }`}
+                    }${entries.some((e) => e.clash) ? ", ada bentrok" : ""}`}
                   >
                     <TodayNumber date={date} today={today} className={cn(!inMonth && "text-muted-foreground")} />
                     <span aria-hidden="true" className="flex flex-wrap gap-1 px-1">
@@ -117,7 +129,10 @@ export function MonthView({
                     </span>
                   </Link>
                   <div className="hidden sm:block">
-                    <TodayNumber date={date} today={today} className={cn(!inMonth && "text-muted-foreground")} />
+                    <div className="flex items-center gap-2">
+                      <TodayNumber date={date} today={today} className={cn(!inMonth && "text-muted-foreground")} />
+                      {entries.some((e) => e.clash) ? <ClashLabel /> : null}
+                    </div>
                     <div className="mt-1 grid gap-1">
                       {entries.slice(0, MAX_CHIPS).map((entry) => (
                         <EntryChip key={entry.id} entry={entry} />
@@ -149,7 +164,7 @@ export function WeekView({ monday, days, today, zoneLabel }: { monday: string; d
 
   return (
     // Seven columns do not fit a phone: this box scrolls sideways on purpose (the page itself never does).
-    <div tabIndex={0} aria-label="Kalender minggu ini, bisa digeser ke samping" className="overflow-x-auto rounded-xl border bg-card outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
+    <div tabIndex={0} aria-label="Kalender minggu ini, bisa digeser ke samping" className="relative overflow-x-auto rounded-xl border bg-card outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
       <table className="w-full min-w-[760px] table-fixed border-separate border-spacing-0">
         <thead>
           <tr>
@@ -199,16 +214,20 @@ export function ListView({ dates, days, today }: { dates: string[]; days: Days; 
           <h2 id={`judul-${date}`} className="flex items-center gap-2 font-heading text-lg font-bold">
             {dayHeading.format(asUtc(date))}
             {date === today ? <span className="rounded-md bg-marker px-2 py-0.5 text-sm font-semibold text-marker-foreground">Hari ini</span> : null}
+            {(days.get(date) ?? []).some((e) => e.clash) ? (
+              <span className="rounded-md bg-warning-surface px-2 py-0.5 font-sans text-sm font-semibold text-warning">Bentrok</span>
+            ) : null}
           </h2>
           <ul className="mt-2 grid gap-2">
             {(days.get(date) ?? []).map((entry) => (
               <li key={entry.id}>
                 <Link
                   href={entry.href}
-                  style={entry.slotOf ? { borderColor: entry.color } : undefined}
+                  style={entry.clash ? { borderColor: "var(--warning)" } : entry.slotOf ? { borderColor: entry.color } : undefined}
                   className={cn(
                     "flex min-h-14 items-center gap-3 rounded-xl border bg-card px-4 py-3 outline-none hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50",
                     entry.slotOf && "border-dashed",
+                    entry.clash && "border-2",
                   )}
                 >
                   <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ background: entry.color }} />
@@ -222,6 +241,7 @@ export function ListView({ dates, days, today }: { dates: string[]; days: Days; 
                       {entry.slotOf ? `Jadwal ${entry.slotOf} · ` : null}
                       {entry.accountName}
                     </span>
+                    {entry.clash ? <span className="block text-sm font-semibold text-warning">Bentrok: jam yang sama dengan posting lain</span> : null}
                   </span>
                 </Link>
               </li>

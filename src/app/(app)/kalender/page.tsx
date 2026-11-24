@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
-import { placeOnCalendar, scheduleSlots } from "@/lib/calendar";
+import { clashDate, describeClash, findClashes, placeOnCalendar, scheduleSlots } from "@/lib/calendar";
 import {
   addDays,
   addMonths,
@@ -88,7 +88,9 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
     listSchedules(user.id, accountIds),
   ]);
   const filled = await listFilledSlots(user.id, schedules.map((s) => s.id));
-  const days = placeOnCalendar([...items, ...scheduleSlots(schedules, filled, range.from, range.to)], homeZone);
+  const all = [...items, ...scheduleSlots(schedules, filled, range.from, range.to)];
+  const days = placeOnCalendar(all, homeZone);
+  const clashes = findClashes(all).filter((c) => shown.includes(clashDate(c)));
   // The query range is padded for every timezone; only count what actually lands on screen.
   const onScreen = shown.flatMap((d) => days.get(d) ?? []);
   const visibleCount = onScreen.length;
@@ -173,6 +175,17 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
           );
         })}
       </nav>
+
+      {clashes.length > 0 ? (
+        // Figma week view: one warning line per clash on screen. A warning, not an error, so not red.
+        <ul className="mt-4 grid gap-2">
+          {clashes.map((c, i) => (
+            <li key={i} className="rounded-lg bg-warning-surface px-4 py-3 text-sm">
+              <span className="font-semibold text-warning">Bentrok:</span> {describeClash(c)}. Geser salah satunya.
+            </li>
+          ))}
+        </ul>
+      ) : null}
 
       {hasSlots ? (
         // Legend from the Figma calendar: what a dashed entry means.

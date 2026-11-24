@@ -11,9 +11,12 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
   },
-  // Our forms sign in and sign up through Server Actions, which are rate limited (src/server/rate-limit.ts).
-  // Closing the same endpoints over HTTP leaves no unlimited way around them. auth.api.* calls still work.
-  disabledPaths: ["/sign-in/email", "/sign-up/email"],
+  // Hapus akun (D-034): deletes the user row; every table of ours cascades from it. Asked with the password.
+  user: { deleteUser: { enabled: true } },
+  // Our forms sign in, sign up and delete the account through Server Actions, which are rate limited
+  // (src/server/rate-limit.ts) and, for deleting, also ask for "HAPUS". Closing the same endpoints over HTTP leaves
+  // no way around them; /verify-password would be an unlimited password check. auth.api.* calls still work.
+  disabledPaths: ["/sign-in/email", "/sign-up/email", "/delete-user", "/verify-password"],
   // nextCookies must stay the last plugin so Server Actions can set the session cookie.
   plugins: [nextCookies()],
 });
