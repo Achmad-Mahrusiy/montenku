@@ -7,6 +7,7 @@ import {
   contentItems,
   itemStageDeadlines,
   notes,
+  pushSubscriptions,
   reminderSettings,
   reminders,
   scheduleExceptions,
@@ -22,6 +23,7 @@ import { createContentAccount } from "@/server/dal/content-accounts";
 import { createContentItem, createNote } from "@/server/dal/content-items";
 import { addReminderSetting } from "@/server/dal/reminder-settings";
 import { createSchedule, setException } from "@/server/dal/schedules";
+import { savePushSubscription } from "@/server/dal/push-subscriptions";
 import { saveUserSettings } from "@/server/dal/user-settings";
 
 afterAll(() => closeDb());
@@ -37,6 +39,7 @@ async function userWithEverything(email: string) {
     .map((c) => c.split(";")[0])
     .join("; ");
 
+  await savePushSubscription(userId, { endpoint: `https://push.example/${userId}`, p256dh: "p", auth: "a" });
   await saveUserSettings(userId, { emailEnabled: true, timezone: "Asia/Jakarta", quiet: { start: "22:00", end: "07:00" } });
   const accountId = (await createContentAccount(userId, { name: "Masak Hemat", platform: "tiktok", handle: "mh", color: "#e4572e", timezone: "Asia/Jakarta" })).id;
   const item = (await createContentItem(userId, {
@@ -66,7 +69,7 @@ async function userWithEverything(email: string) {
 
 /** Rows that still belong to the user, per table. */
 async function rowsLeft(userId: string) {
-  const byUser = [session, account, userSettings, contentAccounts, contentItems, itemStageDeadlines, notes, schedules, scheduleExceptions, reminderSettings, reminders] as const;
+  const byUser = [session, account, userSettings, contentAccounts, contentItems, itemStageDeadlines, notes, schedules, scheduleExceptions, reminderSettings, reminders, pushSubscriptions] as const;
   const counts = await Promise.all(byUser.map((table) => db.$count(table, eq(table.userId, userId))));
   return { user: await db.$count(user, eq(user.id, userId)), tables: counts.reduce((a, b) => a + b, 0), perTable: counts };
 }
@@ -81,7 +84,7 @@ describe("hapus akun (D-034)", () => {
 
     await auth.api.deleteUser({ body: { password }, headers: alice.headers });
 
-    expect(await rowsLeft(alice.userId)).toEqual({ user: 0, tables: 0, perTable: Array(11).fill(0) });
+    expect(await rowsLeft(alice.userId)).toEqual({ user: 0, tables: 0, perTable: Array(12).fill(0) });
     expect(await rowsLeft(bob.userId)).toEqual(bobBefore);
   });
 

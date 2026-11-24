@@ -43,6 +43,13 @@
       "when": 1795480591009,
       "tag": "0005_medical_blink",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1795482560004,
+      "tag": "0006_cultured_kid_colt",
+      "breakpoints": true
     }
   ]
 }

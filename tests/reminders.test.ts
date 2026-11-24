@@ -29,6 +29,7 @@ function fakes() {
   const deps: ReminderDeps = {
     appUrl: "https://montenku.test",
     queue: { send: async (message, options) => void queued.push({ message, options }) },
+    push: { send: async () => "ok" },
     mailer: {
       send: async (email, key) => {
         if (failures > 0) {

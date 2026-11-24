@@ -1,6 +1,6 @@
 import { and, eq, gt, inArray, isNotNull, isNull, lt, lte, ne, or, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { contentAccounts, contentItems, reminderSettings, reminders, scheduleExceptions, schedules, user, userSettings } from "@/db/schema";
+import { contentAccounts, contentItems, pushSubscriptions, reminderSettings, reminders, scheduleExceptions, schedules, user, userSettings } from "@/db/schema";
 import { occurrencesBetween, type ExceptionIn } from "@/lib/occurrences";
 import { applyQuietHours, instantToWallTime, timezoneShortName } from "@/lib/time";
 import { offsetLabel } from "@/lib/validation/reminder";
@@ -18,22 +18,39 @@ const RETENTION_EXTRA_S = 24 * 60 * 60; // retention = delay + 24h (D-005)
 
 export type ReminderMessage = { id: string; sendAt: string };
 export type Email = { to: string; subject: string; text: string };
+/** What the service worker shows. `tag` lets a repeat replace a notification that is still on screen. */
+export type PushMessage = { title: string; body: string; url: string; tag: string };
+export type PushTarget = { endpoint: string; p256dh: string; auth: string };
+type Channel = typeof reminders.$inferSelect.channel;
 export type ReminderDeps = {
   queue: { send(message: ReminderMessage, options: { delaySeconds: number; retentionSeconds: number; idempotencyKey: string }): Promise<void> };
   /** Must pass idempotencyKey on to the email provider (Resend keeps it 24h), so a retry never sends twice. */
   mailer: { send(email: Email, idempotencyKey: string): Promise<void> };
+  /**
+   * Sends to one device. "gone" = the push service says the device unsubscribed (404/410); any other failure throws.
+   * topic: the push service keeps only the newest undelivered message per topic, which narrows the crash window (D-036).
+   */
+  push: { send(target: PushTarget, message: PushMessage, options: { ttlSeconds: number; topic: string }): Promise<"ok" | "gone"> };
   /** Absolute base URL for links in the email, e.g. https://montenku.vercel.app */
   appUrl: string;
 };
 
-type Desired = { settingId: string; userId: string; occurrenceKey: string; targetAt: Date; sendAt: Date };
+type Desired = { settingId: string; userId: string; occurrenceKey: string; channel: Channel; targetAt: Date; sendAt: Date };
 
 const wall = (value: string) => value.replace(" ", "T").slice(0, 16);
 const minutes = (n: number) => n * 60 * 1000;
 
-// No user_settings row means email on (D-032). Used to skip and cancel reminders of users who turned email off.
-const emailOn = sql`coalesce(${userSettings.emailEnabled}, true)`;
-const emailOff = sql`exists (select 1 from ${userSettings} where ${userSettings.userId} = ${reminders.userId} and not ${userSettings.emailEnabled})`;
+// Which channels a user has on (D-036). Email: no user_settings row means on (D-032). Push: on while at least one device
+// is subscribed. Selected per setting row, so one query decides both.
+const channelColumns = {
+  emailOn: sql<boolean>`coalesce(${userSettings.emailEnabled}, true)`,
+  pushOn: sql<boolean>`exists (select 1 from ${pushSubscriptions} where ${pushSubscriptions.userId} = ${reminderSettings.userId})`,
+};
+const channelsOf = (r: { emailOn: boolean; pushOn: boolean }): Channel[] => [...(r.emailOn ? (["email"] as const) : []), ...(r.pushOn ? (["push"] as const) : [])];
+// The same rule for an existing reminders row: its own channel is off. Used to cancel it, and to refuse to claim it.
+const channelOff = sql`case ${reminders.channel}
+  when 'email' then exists (select 1 from ${userSettings} where ${userSettings.userId} = ${reminders.userId} and not ${userSettings.emailEnabled})
+  else not exists (select 1 from ${pushSubscriptions} where ${pushSubscriptions.userId} = ${reminders.userId}) end`;
 const quietColumns = { quietStart: userSettings.quietStart, quietEnd: userSettings.quietEnd, userTimezone: userSettings.timezone };
 type QuietRow = { quietStart: string | null; quietEnd: string | null; userTimezone: string | null };
 /** send_at = target - offset, moved out of the user's quiet hours (Q2). */
@@ -41,8 +58,8 @@ const sendTime = (targetAt: Date, offset: number, r: QuietRow) =>
   applyQuietHours(new Date(targetAt.getTime() - minutes(offset)), targetAt, quietFromRow(r.quietStart, r.quietEnd), r.userTimezone ?? DEFAULT_SETTINGS.timezone);
 
 /**
- * Every reminder that should exist now: target still ahead, send_at within the window.
- * Archived accounts and users with email turned off get none.
+ * Every reminder that should exist now: target still ahead, send_at within the window, one per channel that is on.
+ * Archived accounts get none.
  */
 async function desiredReminders(now: Date, userId?: string): Promise<Desired[]> {
   const horizon = new Date(now.getTime() + WINDOW_MS);
@@ -51,15 +68,16 @@ async function desiredReminders(now: Date, userId?: string): Promise<Desired[]> 
 
   // Single items: one reminder per setting, key "once".
   const itemRows = await db
-    .select({ settingId: reminderSettings.id, userId: reminderSettings.userId, offset: reminderSettings.offsetMinutes, targetAt: contentItems.targetAt, ...quietColumns })
+    .select({ settingId: reminderSettings.id, userId: reminderSettings.userId, offset: reminderSettings.offsetMinutes, targetAt: contentItems.targetAt, ...quietColumns, ...channelColumns })
     .from(reminderSettings)
     .innerJoin(contentItems, eq(contentItems.id, reminderSettings.itemId))
     .innerJoin(contentAccounts, eq(contentAccounts.id, contentItems.accountId))
     .leftJoin(userSettings, eq(userSettings.userId, reminderSettings.userId))
-    .where(and(byUser(reminderSettings.userId), isNull(contentAccounts.archivedAt), gt(contentItems.targetAt, now), emailOn));
+    .where(and(byUser(reminderSettings.userId), isNull(contentAccounts.archivedAt), gt(contentItems.targetAt, now)));
   for (const r of itemRows) {
     const sendAt = sendTime(r.targetAt, r.offset, r);
-    if (sendAt <= horizon) result.push({ settingId: r.settingId, userId: r.userId, occurrenceKey: "once", targetAt: r.targetAt, sendAt });
+    if (sendAt > horizon) continue;
+    for (const channel of channelsOf(r)) result.push({ settingId: r.settingId, userId: r.userId, occurrenceKey: "once", channel, targetAt: r.targetAt, sendAt });
   }
 
   // Recurring schedules: one reminder per occurrence. A filled slot uses its item's time (the item may have moved).
@@ -73,12 +91,13 @@ async function desiredReminders(now: Date, userId?: string): Promise<Desired[]> 
       dtstartLocal: schedules.dtstartLocal,
       timezone: contentAccounts.timezone,
       ...quietColumns,
+      ...channelColumns,
     })
     .from(reminderSettings)
     .innerJoin(schedules, eq(schedules.id, reminderSettings.scheduleId))
     .innerJoin(contentAccounts, eq(contentAccounts.id, schedules.accountId))
     .leftJoin(userSettings, eq(userSettings.userId, reminderSettings.userId))
-    .where(and(byUser(reminderSettings.userId), isNull(contentAccounts.archivedAt), emailOn));
+    .where(and(byUser(reminderSettings.userId), isNull(contentAccounts.archivedAt)));
   if (scheduleRows.length === 0) return result;
 
   const ids = [...new Set(scheduleRows.map((r) => r.scheduleId))];
@@ -101,7 +120,7 @@ async function desiredReminders(now: Date, userId?: string): Promise<Desired[]> 
       const targetAt = filled.get(`${r.scheduleId}|${o.key}`) ?? o.at;
       const sendAt = sendTime(targetAt, r.offset, r);
       if (targetAt > now && sendAt <= horizon) {
-        result.push({ settingId: r.settingId, userId: r.userId, occurrenceKey: o.key, targetAt, sendAt });
+        for (const channel of channelsOf(r)) result.push({ settingId: r.settingId, userId: r.userId, occurrenceKey: o.key, channel, targetAt, sendAt });
       }
     }
   }
@@ -123,9 +142,11 @@ export async function reconcile(deps: ReminderDeps, { now, userId }: { now: Date
   if (desired.length > 0) {
     const rows = await db
       .insert(reminders)
-      .values(desired.map((d) => ({ userId: d.userId, reminderSettingId: d.settingId, occurrenceKey: d.occurrenceKey, targetAt: d.targetAt, sendAt: d.sendAt })))
+      .values(
+        desired.map((d) => ({ userId: d.userId, reminderSettingId: d.settingId, occurrenceKey: d.occurrenceKey, channel: d.channel, targetAt: d.targetAt, sendAt: d.sendAt })),
+      )
       .onConflictDoUpdate({
-        target: [reminders.reminderSettingId, reminders.occurrenceKey],
+        target: [reminders.reminderSettingId, reminders.occurrenceKey, reminders.channel],
         set: {
           targetAt: sql`excluded.target_at`,
           sendAt: sql`excluded.send_at`,
@@ -140,14 +161,15 @@ export async function reconcile(deps: ReminderDeps, { now, userId }: { now: Date
   }
 
   // 2. Cancel pending rows that are no longer wanted: item deleted or moved out of the window, occurrence skipped,
-  //    setting removed, account archived, email turned off (then also overdue ones, which would otherwise go out in
-  //    step 4). Their queue messages then find a non-pending row and do nothing (D-006).
-  const wanted = new Set(desired.map((d) => `${d.settingId}|${d.occurrenceKey}`));
+  //    setting removed, account archived, its channel turned off (email off, or the last device unsubscribed; then
+  //    also overdue ones, which would otherwise go out in step 4). Their queue messages then find a non-pending row
+  //    and do nothing (D-006).
+  const wanted = new Set(desired.map((d) => `${d.settingId}|${d.occurrenceKey}|${d.channel}`));
   const pending = await db
-    .select({ id: reminders.id, settingId: reminders.reminderSettingId, key: reminders.occurrenceKey })
+    .select({ id: reminders.id, settingId: reminders.reminderSettingId, key: reminders.occurrenceKey, channel: reminders.channel })
     .from(reminders)
-    .where(and(byUser, eq(reminders.status, "pending"), or(gt(reminders.targetAt, now), emailOff)));
-  const stale = pending.filter((p) => !wanted.has(`${p.settingId}|${p.key}`)).map((p) => p.id);
+    .where(and(byUser, eq(reminders.status, "pending"), or(gt(reminders.targetAt, now), channelOff)));
+  const stale = pending.filter((p) => !wanted.has(`${p.settingId}|${p.key}|${p.channel}`)).map((p) => p.id);
   if (stale.length > 0) {
     const rows = await db
       .update(reminders)
@@ -213,10 +235,11 @@ export async function reconcile(deps: ReminderDeps, { now, userId }: { now: Date
 
 /**
  * Sends one reminder, at most once (D-007). Used by the queue consumer and by reconcile().
- * Returns "skipped" when the row is gone, not pending, moved to another time, or not due yet.
- * Throws when the email fails, so the queue retries; the row is back to pending (or failed after 5 attempts).
+ * Returns "skipped" when the row is gone, not pending, moved to another time, or not due yet; "cancelled" when a push
+ * finds no device left. Throws when sending fails, so the queue retries; the row is back to pending (or failed after
+ * 5 attempts).
  */
-export async function deliver(deps: ReminderDeps, message: ReminderMessage, now: Date): Promise<"sent" | "skipped"> {
+export async function deliver(deps: ReminderDeps, message: ReminderMessage, now: Date): Promise<"sent" | "skipped" | "cancelled"> {
   const sendAt = new Date(message.sendAt);
   if (Number.isNaN(sendAt.getTime())) return "skipped";
 
@@ -230,17 +253,22 @@ export async function deliver(deps: ReminderDeps, message: ReminderMessage, now:
         eq(reminders.status, "pending"),
         eq(reminders.sendAt, sendAt),
         lte(reminders.sendAt, new Date(now.getTime() + EARLY_MS)),
-        // Email turned off since this was queued: leave it for reconcile() to cancel.
-        sql`not ${emailOff}`,
+        // Its channel turned off since this was queued: leave it for reconcile() to cancel.
+        sql`not ${channelOff}`,
       ),
     )
     .returning();
   if (!claimed) return "skipped";
 
+  let delivered = true;
   try {
-    const email = await composeEmail(claimed, deps.appUrl);
-    // Same key on every retry of this row at this time; the provider drops the duplicate (24h).
-    await deps.mailer.send(email, `reminder:${claimed.id}:${sendAt.toISOString()}`);
+    const content = await composeReminder(claimed, deps.appUrl);
+    if (claimed.channel === "email") {
+      // Same key on every retry of this row at this time; the provider drops the duplicate (24h).
+      await deps.mailer.send(toEmail(content), `reminder:${claimed.id}:${sendAt.toISOString()}`);
+    } else {
+      delivered = await sendPushToDevices(deps, claimed, content, now);
+    }
   } catch (error) {
     const attempts = claimed.attempts + 1;
     await db
@@ -255,6 +283,13 @@ export async function deliver(deps: ReminderDeps, message: ReminderMessage, now:
     throw error;
   }
 
+  if (!delivered) {
+    await db
+      .update(reminders)
+      .set({ status: "cancelled", claimedAt: null, enqueuedSendAt: null, lastError: "Tidak ada perangkat yang aktif" })
+      .where(and(eq(reminders.id, claimed.id), eq(reminders.status, "sending")));
+    return "cancelled";
+  }
   await db
     .update(reminders)
     .set({ status: "sent", sentAt: now, claimedAt: null, lastError: null })
@@ -262,8 +297,53 @@ export async function deliver(deps: ReminderDeps, message: ReminderMessage, now:
   return "sent";
 }
 
+/**
+ * Push fan-out to every device of the user (D-036). The row counts as sent once one device accepted, so a retry never
+ * reaches a device twice; it is retried only when no device accepted. A device the push service reports gone is
+ * deleted. Returns false when no device was left to send to.
+ */
+async function sendPushToDevices(deps: ReminderDeps, row: typeof reminders.$inferSelect, content: ReminderContent, now: Date): Promise<boolean> {
+  const devices = await db
+    .select({ endpoint: pushSubscriptions.endpoint, p256dh: pushSubscriptions.p256dh, auth: pushSubscriptions.auth })
+    .from(pushSubscriptions)
+    .where(eq(pushSubscriptions.userId, row.userId));
+  const message: PushMessage = {
+    title: content.subject,
+    body: `${content.offsetText} · ${content.when}`,
+    url: content.url,
+    tag: `reminder-${row.reminderSettingId}-${row.occurrenceKey}`,
+  };
+  // Not worth showing after the posting time: an offline phone that comes back later just drops it.
+  const ttlSeconds = Math.max(60, Math.ceil((row.targetAt.getTime() - now.getTime()) / 1000));
+  // A topic may be at most 32 URL-safe characters: the row id without dashes is exactly that.
+  const topic = row.id.replace(/-/g, "");
+
+  let accepted = 0;
+  const errors: unknown[] = [];
+  for (const device of devices) {
+    try {
+      if ((await deps.push.send(device, message, { ttlSeconds, topic })) === "ok") accepted += 1;
+      else await db.delete(pushSubscriptions).where(and(eq(pushSubscriptions.endpoint, device.endpoint), eq(pushSubscriptions.userId, row.userId)));
+    } catch (error) {
+      errors.push(error);
+    }
+  }
+  if (accepted > 0) return true;
+  if (errors.length > 0) throw errors[0];
+  return false;
+}
+
+type ReminderContent = { to: string; subject: string; offsetText: string; title: string; accountName: string; when: string; url: string };
+
 /** Email in Indonesian: account, title, time in the account's own timezone, link to the item (brief, Fase 4). */
-async function composeEmail(row: typeof reminders.$inferSelect, appUrl: string): Promise<Email> {
+const toEmail = (c: ReminderContent): Email => ({
+  to: c.to,
+  subject: c.subject,
+  text: [`${c.offsetText}: "${c.title}" di akun ${c.accountName}.`, `Waktu posting: ${c.when}`, "", `Buka di Montenku: ${c.url}`].join("\n"),
+});
+
+/** The facts of one reminder, shared by the email and the push notification. */
+async function composeReminder(row: typeof reminders.$inferSelect, appUrl: string): Promise<ReminderContent> {
   const [setting] = await db
     .select({ itemId: reminderSettings.itemId, scheduleId: reminderSettings.scheduleId, offset: reminderSettings.offsetMinutes, email: user.email })
     .from(reminderSettings)
@@ -305,11 +385,10 @@ async function composeEmail(row: typeof reminders.$inferSelect, appUrl: string):
   return {
     to: setting.email,
     subject: `Pengingat: ${title} (${accountName})`,
-    text: [
-      `${offsetLabel(setting.offset)}: "${title}" di akun ${accountName}.`,
-      `Waktu posting: ${when}`,
-      "",
-      `Buka di Montenku: ${appUrl.replace(/\/$/, "")}${path}`,
-    ].join("\n"),
+    offsetText: offsetLabel(setting.offset),
+    title,
+    accountName,
+    when,
+    url: `${appUrl.replace(/\/$/, "")}${path}`,
   };
 }

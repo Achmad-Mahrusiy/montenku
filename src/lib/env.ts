@@ -16,12 +16,16 @@ const envSchema = z
     EMAIL_FROM: z.preprocess((value) => (value === "" ? undefined : value), z.string().default("Montenku <onboarding@resend.dev>")),
     // Vercel sends it as "Authorization: Bearer <CRON_SECRET>" to the cron and sweeper route.
     CRON_SECRET: optional(z.string().min(16, "CRON_SECRET minimal 16 karakter")),
+    // Web Push (Fase 6, D-036): one key pair for the whole app, from `npx web-push generate-vapid-keys`.
+    VAPID_PUBLIC_KEY: optional(z.string()),
+    VAPID_PRIVATE_KEY: optional(z.string()),
+    VAPID_SUBJECT: optional(z.string().regex(/^(mailto:|https:\/\/)/, "VAPID_SUBJECT diawali mailto: atau https://")),
     VERCEL_ENV: optional(z.string()),
   })
   .superRefine((value, ctx) => {
-    // Rate limiting, email and the reminder cron may be off on your laptop, never on the live site.
+    // Rate limiting, email, push and the reminder cron may be off on your laptop, never on the live site.
     if (value.VERCEL_ENV !== "production") return;
-    for (const key of ["UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN", "RESEND_API_KEY", "CRON_SECRET"] as const) {
+    for (const key of ["UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN", "RESEND_API_KEY", "CRON_SECRET", "VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY", "VAPID_SUBJECT"] as const) {
       if (!value[key]) ctx.addIssue({ code: "custom", path: [key], message: `${key} wajib diisi di production` });
     }
   });

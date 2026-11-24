@@ -26,6 +26,7 @@ describe("RLS deny-all di schema public", () => {
         "reminder_settings",
         "reminders",
         "user_settings",
+        "push_subscriptions",
       ]),
     );
   });

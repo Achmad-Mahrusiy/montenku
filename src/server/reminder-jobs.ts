@@ -3,6 +3,7 @@ import { z } from "zod";
 import { env } from "@/lib/env";
 import { deliver, reconcile, type ReminderDeps } from "@/server/dal/reminders";
 import { sendEmail } from "@/server/mailer";
+import { sendPush } from "@/server/push";
 
 // Wires the reminder engine to the real world. Everything queue-specific lives here (DECISIONS.md D-010).
 
@@ -17,6 +18,7 @@ const queueAvailable = Boolean(process.env.VERCEL);
 export const reminderDeps: ReminderDeps = {
   appUrl: env.BETTER_AUTH_URL,
   mailer: { send: sendEmail },
+  push: { send: sendPush },
   queue: {
     send: async (message, options) => {
       if (!queueAvailable) return;
@@ -27,7 +29,7 @@ export const reminderDeps: ReminderDeps = {
 
 const messageSchema = z.object({ id: z.uuid(), sendAt: z.iso.datetime() });
 
-/** Queue consumer body. A malformed message is acknowledged and dropped; a failed email throws so the queue retries. */
+/** Queue consumer body. A malformed message is acknowledged and dropped; a failed send throws so the queue retries. */
 export async function handleReminderMessage(message: unknown): Promise<void> {
   const parsed = messageSchema.safeParse(message);
   if (!parsed.success) {

@@ -39,7 +39,10 @@ export const reminderSettings = pgTable(
 // D-007: pending -> sending (claimed, with a lease) -> sent; or cancelled; or failed after 5 attempts.
 export const reminderStatus = pgEnum("reminder_status", ["pending", "sending", "sent", "cancelled", "failed"]);
 
-// One email to send: the source of truth (D-006). Rows exist only for the next 48 hours of send_at (D-005).
+// Where a reminder goes (D-036). Each channel has its own row, status and exactly-once claim.
+export const reminderChannel = pgEnum("reminder_channel", ["email", "push"]);
+
+// One email or push to send: the source of truth (D-006). Rows exist only for the next 48 hours of send_at (D-005).
 export const reminders = pgTable(
   "reminders",
   {
@@ -48,6 +51,8 @@ export const reminders = pgTable(
     reminderSettingId: uuid("reminder_setting_id").notNull(),
     // Wall-clock key of the occurrence for a schedule (D-004), or "once" for a single item.
     occurrenceKey: text("occurrence_key").notNull(),
+    // Default "email": every row from before Fase 6 was an email.
+    channel: reminderChannel("channel").notNull().default("email"),
     targetAt: timestamp("target_at", { withTimezone: true }).notNull(),
     sendAt: timestamp("send_at", { withTimezone: true }).notNull(),
     status: reminderStatus("status").notNull().default("pending"),
@@ -69,8 +74,26 @@ export const reminders = pgTable(
       columns: [t.reminderSettingId, t.userId],
       foreignColumns: [reminderSettings.id, reminderSettings.userId],
     }).onDelete("cascade"),
-    // The database-side idempotency key (D-006): one row per setting and occurrence.
-    unique("reminders_setting_occurrence_unique").on(t.reminderSettingId, t.occurrenceKey),
+    // The database-side idempotency key (D-006): one row per setting, occurrence and channel (D-036).
+    unique("reminders_setting_occurrence_channel_unique").on(t.reminderSettingId, t.occurrenceKey, t.channel),
     index("reminders_status_send_at_idx").on(t.status, t.sendAt),
   ],
+).enableRLS();
+
+// One browser or phone that allows Montenku notifications (D-036). The endpoint is the device's address at its push
+// service (Google, Mozilla, Apple); p256dh and auth are the keys web-push encrypts each message with.
+export const pushSubscriptions = pgTable(
+  "push_subscriptions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    // Unique: one device belongs to one login at a time (the last one that subscribed on it).
+    endpoint: text("endpoint").notNull().unique(),
+    p256dh: text("p256dh").notNull(),
+    auth: text("auth").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("push_subscriptions_user_id_idx").on(t.userId)],
 ).enableRLS();
