@@ -1,22 +1,15 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { Button } from "@/components/ui/button";
-import { signOutAction } from "@/server/actions/auth";
 import { listContentAccounts } from "@/server/dal/content-accounts";
 import { requireUser } from "@/server/dal/session";
 import { AppNav } from "./app-nav";
+import { SignOutButton } from "./sign-out-button";
 
 export default async function AppLayout({ children }: Readonly<{ children: ReactNode }>) {
   const user = await requireUser();
   const activeAccounts = (await listContentAccounts(user.id)).filter((account) => !account.archivedAt);
 
-  const signOut = (
-    <form action={signOutAction}>
-      <Button type="submit" variant="outline">
-        Keluar
-      </Button>
-    </form>
-  );
+  const signOut = <SignOutButton />;
 
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[264px_1fr]">

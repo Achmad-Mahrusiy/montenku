@@ -6,7 +6,7 @@ import { pushSubscriptions, reminders, user } from "@/db/schema";
 import { createContentAccount } from "@/server/dal/content-accounts";
 import { createContentItem } from "@/server/dal/content-items";
 import { deletePushSubscription, hasPushSubscription, savePushSubscription } from "@/server/dal/push-subscriptions";
-import { addReminderSetting } from "@/server/dal/reminder-settings";
+import { addReminderSetting, listFailedReminders, listReminderStatuses, listReminderSummaries } from "@/server/dal/reminder-settings";
 import { deliver, reconcile, type Email, type PushMessage, type ReminderDeps, type ReminderMessage } from "@/server/dal/reminders";
 import { saveUserSettings } from "@/server/dal/user-settings";
 
@@ -76,6 +76,22 @@ describe("pengingat per kanal: email dan push (D-036)", () => {
     expect(emails).toHaveLength(1);
     expect(pushes).toHaveLength(1);
     expect((await rowsOf(userId)).every((r) => r.status === "sent")).toBe(true);
+  });
+
+  it("status di panel, ringkasan dashboard, dan peringatan gagal menyebut kanalnya", async () => {
+    const { userId, itemId, devices } = await setup({ devices: 1 });
+    const { deps } = fakes({ [devices[0]!.endpoint]: "fail" });
+    await reconcile(deps, { now: DAY_BEFORE, userId });
+    const message = messageOf((await rowOf(userId, "push"))!);
+    for (let attempt = 0; attempt < 5; attempt++) await deliver(deps, message, later(DUE, attempt)).catch(() => {});
+
+    const statuses = await listReminderStatuses(userId, { itemId });
+    expect(statuses.map((r) => [r.channel, r.status]).sort()).toEqual([
+      ["email", "pending"],
+      ["push", "failed"],
+    ]);
+    expect((await listReminderSummaries(userId, { itemIds: [itemId], scheduleIds: [] })).map((r) => r.channel).sort()).toEqual(["email", "push"]);
+    expect((await listFailedReminders(userId, DAY_BEFORE)).map((r) => r.channel)).toEqual(["push"]);
   });
 
   it("tanpa perangkat: hanya baris email (perilaku lama tetap)", async () => {

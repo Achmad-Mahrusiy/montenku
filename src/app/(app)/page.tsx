@@ -8,7 +8,7 @@ import { lateLabel, pickReminder, todoLists, UPCOMING_MS, type TodoRow } from "@
 import { addDays, instantToWallTime, startOfWeek, todayIn, utcRangeCovering } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { statusLabels } from "@/lib/validation/content-item";
-import { offsetLabel } from "@/lib/validation/reminder";
+import { channelLabels, offsetLabel } from "@/lib/validation/reminder";
 import { listContentAccounts } from "@/server/dal/content-accounts";
 import { listContentItems, listDeadlines, listLatePostings, type CalendarItem } from "@/server/dal/content-items";
 import { listFailedReminders, listReminderSummaries, type ReminderSummary } from "@/server/dal/reminder-settings";
@@ -248,7 +248,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
               <div className="min-w-0 flex-1 basis-64">
                 <h2 className="text-sm font-semibold text-destructive">{failed.length} pengingat gagal terkirim</h2>
                 <p className="text-sm break-words">
-                  Pengingat {offsetLabel(failed[0].offsetMinutes)} untuk &quot;{failed[0].title}&quot; ({failed[0].accountName}) gagal 5 kali.
+                  Pengingat {channelLabels[failed[0].channel].toLowerCase()} {offsetLabel(failed[0].offsetMinutes)} untuk &quot;{failed[0].title}&quot; ({failed[0].accountName}) gagal 5 kali.
                   {failed.length > 1 ? ` Ada ${failed.length - 1} lainnya.` : ""}
                 </p>
               </div>

@@ -50,6 +50,8 @@ export type ReminderStatusRow = {
   id: string;
   settingId: string;
   occurrenceKey: string;
+  /** Email or push (D-036): each has its own row and status. */
+  channel: "email" | "push";
   sendAt: Date;
   status: "pending" | "sending" | "sent" | "cancelled" | "failed";
   lastError: string | null;
@@ -62,6 +64,7 @@ export async function listReminderStatuses(userId: string, target: ReminderTarge
       id: reminders.id,
       settingId: reminders.reminderSettingId,
       occurrenceKey: reminders.occurrenceKey,
+      channel: reminders.channel,
       sendAt: reminders.sendAt,
       status: reminders.status,
       lastError: reminders.lastError,
@@ -85,7 +88,7 @@ export async function retryFailedReminder(userId: string, reminderId: string): P
   return rows.length > 0;
 }
 
-export type ReminderSummary = Pick<ReminderStatusRow, "occurrenceKey" | "sendAt" | "status"> & {
+export type ReminderSummary = Pick<ReminderStatusRow, "occurrenceKey" | "channel" | "sendAt" | "status"> & {
   itemId: string | null;
   scheduleId: string | null;
   offsetMinutes: number;
@@ -100,6 +103,7 @@ export async function listReminderSummaries(userId: string, ids: { itemIds: stri
       scheduleId: reminderSettings.scheduleId,
       offsetMinutes: reminderSettings.offsetMinutes,
       occurrenceKey: reminders.occurrenceKey,
+      channel: reminders.channel,
       sendAt: reminders.sendAt,
       status: reminders.status,
     })
@@ -116,13 +120,14 @@ export async function listReminderSummaries(userId: string, ids: { itemIds: stri
     );
 }
 
-export type FailedReminder = { id: string; offsetMinutes: number; title: string; accountName: string; href: string };
+export type FailedReminder = { id: string; channel: "email" | "push"; offsetMinutes: number; title: string; accountName: string; href: string };
 
 /** Failed reminders whose posting time is after `since`, for the dashboard alert. Newest posting first. */
 export async function listFailedReminders(userId: string, since: Date): Promise<FailedReminder[]> {
   const rows = await db
     .select({
       id: reminders.id,
+      channel: reminders.channel,
       offsetMinutes: reminderSettings.offsetMinutes,
       itemId: reminderSettings.itemId,
       itemTitle: contentItems.title,
@@ -140,6 +145,7 @@ export async function listFailedReminders(userId: string, since: Date): Promise<
   // Each failed row has its "Kirim ulang" button on the item page, or in the schedule editor.
   return rows.map((r) => ({
     id: r.id,
+    channel: r.channel,
     offsetMinutes: r.offsetMinutes,
     title: r.itemTitle ?? r.scheduleTitle ?? "",
     accountName: r.accountName,

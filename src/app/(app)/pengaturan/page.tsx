@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { env } from "@/lib/env";
 import { allTimezones, indonesianTimezones } from "@/lib/validation/content-account";
 import { requireUser } from "@/server/dal/session";
 import { getUserSettings } from "@/server/dal/user-settings";
+import { PushSettings } from "./push-settings";
 import { DeleteAccountForm, SettingsForm } from "./settings-form";
 
 export const metadata: Metadata = { title: "Pengaturan | Montenku" };
@@ -26,6 +28,8 @@ export default async function SettingsPage() {
           }}
           otherTimezones={allTimezones.filter((tz) => !(tz in indonesianTimezones))}
         />
+        {/* Only the public key goes to the browser; the private key never leaves the server. */}
+        <PushSettings publicKey={env.VAPID_PUBLIC_KEY ?? null} />
         <DeleteAccountForm />
       </div>
     </main>

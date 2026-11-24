@@ -642,3 +642,24 @@ Status: Usulan
 **Alasan.** Test (`tests/push-reminders.test.ts`): dua kanal menghasilkan dua baris dan masing-masing terkirim sekali; tanpa perangkat hanya ada email; email mati tetap mengirim push lewat konsumen antrean; isi push (judul, jam di zona akun, tautan, tag, TTL, topic); pesan push ganda terkirim sekali; satu dari dua perangkat gagal tetap terkirim dan tidak diulang; semua perangkat gagal diulang lalu terkirim; perangkat 410 dihapus dan baris dibatalkan kalau habis; perangkat terakhir dilepas membatalkan push pending setelah waktu posting, sementara email tetap terkirim; email dimatikan setelah diantrekan tidak diklaim; isolasi perangkat antar pengguna. Uji mutasi: menghapus cek kanal di klaim, menghapus cek kanal di pembatalan, memakai aturan email lama di klaim, dan mengulang push saat sebagian perangkat gagal, masing-masing membuat test gagal. Test hapus akun sekarang mencakup 12 tabel.
 
 **Belum terverifikasi.** Pengiriman push sungguhan ke browser: butuh service worker dan tombol berlangganan (Langkah 3) serta kunci VAPID.
+
+---
+
+## D-037 Notifikasi push di perangkat dan PWA
+Status: Usulan
+
+**Konteks.** Fase 6 Langkah 3: tombol push per perangkat (jawaban pengguna 24 Nov 2026), service worker, dan manifest supaya Montenku bisa dipasang ke layar utama. iPhone dan iPad hanya mengizinkan push untuk web app yang sudah dipasang ke Layar Utama (iOS 16.4+). Figma hanya punya baris "Email pengingat" di Pengaturan, jadi bagian push meniru gayanya.
+
+**Pilihan.**
+- **Satu tombol "Notifikasi push" per perangkat** di Pengaturan, langsung tersimpan tanpa tombol Simpan. "Menyala" berarti browser ini punya langganan **dan** server menyimpannya untuk pengguna ini (langganan di browser bisa milik login lain, D-036). Izin notifikasi baru diminta saat tombol diklik. Kalau tidak bisa, keterangannya jelas: browser tidak mendukung, iPhone yang belum dipasang ke Layar Utama, izin diblokir, atau kunci VAPID belum diisi di server. Langganan yang dibuat dengan kunci server lama dibuang lalu dibuat ulang.
+- **Menyalakan dan mematikan menjalankan `reconcile()` dan menunggunya**, seperti menyimpan Pengaturan. Akibatnya, menyalakan push langsung mengirim pengingat yang waktu kirimnya sudah lewat selama waktu posting masih di depan (aturan lama D-005), sehingga ini cara tercepat menguji notifikasi. Mematikan perangkat terakhir membatalkan push yang masih pending.
+- **Cegah SSRF:** server akan mengirim POST ke alamat `endpoint` dari browser, jadi hanya layanan push resmi yang diterima (`https`, port bawaan, tanpa `user:pass@`): `fcm.googleapis.com` (Chrome dan browser Chromium lain), `updates.push.services.mozilla.com` (Firefox), subdomain `push.apple.com` (Safari), dan subdomain `notify.windows.com` (Edge). Daftar ini dicek dari dokumentasi masing-masing vendor pada 24 Nov 2026. Yang ditolak hanya mencatat nama host di log, tidak pernah endpoint lengkapnya.
+- **Keluar** mengirim endpoint perangkat ini, sehingga barisnya dihapus (difilter `user_id`) dan browser bersama berhenti menerima pengingat pengguna itu. Tanpa JavaScript, tanpa push, atau dengan sesi yang sudah kedaluwarsa, keluar tetap berfungsi, tapi perangkat itu tetap berlangganan sampai pengguna berikutnya menyalakan push di sana (D-036) atau layanan push melaporkannya hilang.
+- **Service worker** (`public/sw.js`): hanya menampilkan notifikasi dan membuka tautannya, tanpa cache offline. Setiap push selalu berakhir dengan `showNotification` di dalam `waitUntil` (payload rusak tetap memunculkan notifikasi umum). `tag` dari payload membuat notifikasi yang masih tampil diganti, bukan ditambah. Klik hanya membuka halaman di origin Montenku. Header `/sw.js` mengikuti panduan PWA Next.js (tanpa cache, CSP `'self'`).
+- **Manifest** lewat `src/app/manifest.ts`, plus ikon PNG sementara (huruf M di warna Montenku) sampai ada logo asli. Semua berkas ini punya ekstensi, jadi `proxy.ts` tidak mengarahkannya ke /masuk (ada test-nya).
+- **Label kanal:** panel pengingat menampilkan satu status per kanal ("Email: Terkirim", "Push: Gagal") dan tombol "Kirim ulang" per baris, sehingga push yang gagal tidak tersembunyi di balik email yang terkirim. Keterangan di panel menyebut kanal mana yang mati. Peringatan gagal di dashboard menyebut kanalnya.
+- Kunci publik VAPID dikirim ke browser lewat props halaman Pengaturan. Kunci privat tidak pernah keluar dari server.
+
+**Alasan.** Test: daftar host diterima dan ditolak (host lain, `fcm.googleapis.com.evil.com`, host di query string, http, port, kredensial, IP, localhost), skema langganan, berkas PWA tidak dihalangi proxy sementara halaman tetap dijaga, serta status, ringkasan, dan peringatan gagal yang menyebut kanalnya.
+
+**Belum terverifikasi.** Pengiriman push sungguhan dan penggantian lewat `tag`: browser di panel pratinjau memblokir izin notifikasi dan service worker, jadi harus dicoba di Chrome pengguna. Pemasangan di iPhone butuh HTTPS (Fase 7).

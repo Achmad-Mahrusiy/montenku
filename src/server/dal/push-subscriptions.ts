@@ -34,3 +34,8 @@ export async function hasPushSubscription(userId: string, endpoint: string): Pro
     .where(and(eq(pushSubscriptions.endpoint, endpoint), eq(pushSubscriptions.userId, userId)));
   return Boolean(row);
 }
+
+/** How many devices get the user's push reminders, for the note in the reminder panel. */
+export async function countPushSubscriptions(userId: string): Promise<number> {
+  return db.$count(pushSubscriptions, eq(pushSubscriptions.userId, userId));
+}

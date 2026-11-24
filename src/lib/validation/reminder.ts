@@ -15,3 +15,6 @@ export const reminderOffsetSchema = z.coerce
   .number()
   .int()
   .refine((m) => (reminderOffsets as readonly number[]).includes(m), "Pilih waktu pengingat");
+
+// Where a reminder goes (D-036), as shown next to its status.
+export const channelLabels = { email: "Email", push: "Push" } as const;

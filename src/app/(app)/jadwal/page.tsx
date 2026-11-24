@@ -18,6 +18,7 @@ import { listFilledSlots, listSchedules, toRule, type FilledSlot, type Schedule 
 import { listReminderSettings, listReminderStatuses } from "@/server/dal/reminder-settings";
 import { requireUser } from "@/server/dal/session";
 import { getUserSettings } from "@/server/dal/user-settings";
+import { countPushSubscriptions } from "@/server/dal/push-subscriptions";
 import { accountOptions } from "../konten/form-data";
 import { ReminderPanel } from "../reminder-panel";
 import { ScheduleForm, type ScheduleFormValues } from "./schedule-form";
@@ -160,9 +161,13 @@ export default async function SchedulesPage({ searchParams }: { searchParams: Pr
       ? { accountId: firstAccount.id, title: "", days: [], time: "", startDate: todayIn(settings.timezone), endDate: "" }
       : null;
   const rows = editing ? upcoming(editing, filled, true) : [];
-  const [reminderSettings, reminderStatuses] = editing
-    ? await Promise.all([listReminderSettings(user.id, { scheduleId: editing.id }), listReminderStatuses(user.id, { scheduleId: editing.id })])
-    : [[], []];
+  const [reminderSettings, reminderStatuses, pushDevices] = editing
+    ? await Promise.all([
+        listReminderSettings(user.id, { scheduleId: editing.id }),
+        listReminderStatuses(user.id, { scheduleId: editing.id }),
+        countPushSubscriptions(user.id),
+      ])
+    : [[], [], 0];
   // Editing a schedule on an archived account must still list that account.
   const formAccounts = editing ? await accountOptions(user.id, editing.account.id) : accounts;
 
@@ -235,6 +240,7 @@ export default async function SchedulesPage({ searchParams }: { searchParams: Pr
                 timeZone={editing.account.timezone}
                 now={now}
                 userSettings={settings}
+                pushDevices={pushDevices}
               />
             ) : null}
 

@@ -2,12 +2,13 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { applyQuietHours, instantToWallTime, timezoneShortName } from "@/lib/time";
 import { cn } from "@/lib/utils";
-import { offsetLabel, reminderOffsets } from "@/lib/validation/reminder";
+import { channelLabels, offsetLabel, reminderOffsets } from "@/lib/validation/reminder";
 import type { UserSettings } from "@/lib/validation/user-settings";
 import { addReminderAction, removeReminderAction, retryReminderAction } from "@/server/actions/reminders";
 import type { ReminderSetting, ReminderStatusRow, ReminderTarget } from "@/server/dal/reminder-settings";
 
-// "Pengingat email" from the Figma item and schedule screens. Server-rendered: every button is a small form.
+// "Pengingat" from the Figma item and schedule screens (there "Pengingat email"; push came in Fase 6, D-037).
+// Server-rendered: every button is a small form.
 
 const selectClass =
   "h-11 min-w-0 flex-1 rounded-lg border border-input bg-card px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 md:text-sm";
@@ -28,7 +29,7 @@ const statusText: Record<ReminderStatusRow["status"], string> = {
   failed: "Gagal",
 };
 
-function Badge({ status }: { status: ReminderStatusRow["status"] | "late" }) {
+function Badge({ status, channel }: { status: ReminderStatusRow["status"] | "late"; channel?: ReminderStatusRow["channel"] }) {
   return (
     <span
       className={cn(
@@ -36,6 +37,7 @@ function Badge({ status }: { status: ReminderStatusRow["status"] | "late" }) {
         status === "failed" ? "border border-destructive/40 text-destructive" : "bg-muted text-muted-foreground",
       )}
     >
+      {channel ? `${channelLabels[channel]}: ` : null}
       {status === "late" ? "Lewat" : statusText[status]}
     </span>
   );
@@ -66,9 +68,11 @@ type Props = {
   now: Date;
   /** Email on/off and quiet hours from Pengaturan (D-032). */
   userSettings: UserSettings;
+  /** Devices with push on (D-037); 0 = no push reminders. */
+  pushDevices: number;
 };
 
-export function ReminderPanel({ target, settings, statuses, timeZone, targetAt, now, userSettings }: Props) {
+export function ReminderPanel({ target, settings, statuses, timeZone, targetAt, now, userSettings, pushDevices }: Props) {
   const unused = reminderOffsets.filter((o) => !settings.some((s) => s.offsetMinutes === o));
   const forSchedule = "scheduleId" in target;
   const failed = forSchedule ? statuses.filter((r) => r.status === "failed") : [];
@@ -77,14 +81,18 @@ export function ReminderPanel({ target, settings, statuses, timeZone, targetAt, 
     <section aria-labelledby="reminders-title" className="grid gap-4 rounded-xl border bg-card p-5 sm:p-6">
       <div>
         <h2 id="reminders-title" className="font-heading text-xl font-bold">
-          {forSchedule ? "Pengingat untuk tiap kemunculan" : "Pengingat email"}
+          {forSchedule ? "Pengingat untuk tiap kemunculan" : "Pengingat"}
         </h2>
-        <p className="mt-1 text-sm text-muted-foreground">Dikirim ke email akunmu. Waktu ditampilkan dalam zona akun ({timezoneShortName(timeZone, now)}).</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Dikirim lewat email dan notifikasi push yang menyala di Pengaturan. Waktu ditampilkan dalam zona akun ({timezoneShortName(timeZone, now)}).
+        </p>
       </div>
 
       {userSettings.emailEnabled ? null : (
         <p className="rounded-lg bg-muted p-3 text-sm">
-          Email pengingat sedang dimatikan, jadi tidak ada yang dikirim.{" "}
+          {pushDevices === 0
+            ? "Email dan notifikasi push sedang mati, jadi tidak ada yang dikirim."
+            : "Email pengingat sedang mati, jadi pengingat hanya muncul sebagai notifikasi push."}{" "}
           <Link href="/pengaturan" className="font-semibold underline underline-offset-4">
             Buka Pengaturan
           </Link>
@@ -96,15 +104,15 @@ export function ReminderPanel({ target, settings, statuses, timeZone, targetAt, 
       ) : (
         <ul className="divide-y border-t">
           {settings.map((setting) => {
-            // An item has one reminder per setting; its row exists once it is within 48 hours (D-005).
-            const row = forSchedule ? undefined : statuses.find((r) => r.settingId === setting.id);
-            // The row knows the real send time (quiet hours applied); before it exists, work it out the same way.
+            // An item has one row per setting and channel; rows exist once within 48 hours (D-005, D-036).
+            const rows = forSchedule ? [] : statuses.filter((r) => r.settingId === setting.id);
+            // The rows know the real send time (quiet hours applied); before they exist, work it out the same way.
             const sendAt =
-              row?.sendAt ??
+              rows[0]?.sendAt ??
               (targetAt
                 ? applyQuietHours(new Date(targetAt.getTime() - setting.offsetMinutes * 60_000), targetAt, userSettings.quiet, userSettings.timezone)
                 : null);
-            const status = row?.status ?? (targetAt && targetAt <= now ? "late" : "pending");
+            const status = targetAt && targetAt <= now ? "late" : "pending";
             return (
               <li key={setting.id} className="grid gap-2 py-3">
                 <div className="flex items-start justify-between gap-3">
@@ -112,13 +120,27 @@ export function ReminderPanel({ target, settings, statuses, timeZone, targetAt, 
                     <p className="font-semibold">{offsetLabel(setting.offsetMinutes)}</p>
                     {sendAt ? <p className="text-sm text-muted-foreground">{formatInZone(sendAt, timeZone)}</p> : null}
                   </div>
-                  {forSchedule ? null : <Badge status={status} />}
+                  {forSchedule ? null : rows.length === 0 ? (
+                    <Badge status={status} />
+                  ) : (
+                    <div className="flex flex-wrap justify-end gap-1">
+                      {rows.map((row) => (
+                        <Badge key={row.id} status={row.status} channel={row.channel} />
+                      ))}
+                    </div>
+                  )}
                 </div>
-                {row?.status === "failed" && row.lastError ? (
-                  <p className="text-sm text-destructive break-words">Gagal 5 kali. Pesan terakhir: {row.lastError}</p>
-                ) : null}
+                {rows
+                  .filter((row) => row.status === "failed")
+                  .map((row) => (
+                    <div key={row.id} className="flex flex-wrap items-center gap-2">
+                      <p className="min-w-0 flex-1 text-sm text-destructive break-words">
+                        {channelLabels[row.channel]} gagal 5 kali.{row.lastError ? ` Pesan terakhir: ${row.lastError}` : ""}
+                      </p>
+                      <RetryButton id={row.id} />
+                    </div>
+                  ))}
                 <div className="flex flex-wrap gap-2">
-                  {row?.status === "failed" ? <RetryButton id={row.id} /> : null}
                   <form action={removeReminderAction}>
                     <input type="hidden" name="id" value={setting.id} />
                     <Button type="submit" variant="ghost" aria-label={`Hapus pengingat ${offsetLabel(setting.offsetMinutes)}`}>
@@ -139,7 +161,9 @@ export function ReminderPanel({ target, settings, statuses, timeZone, targetAt, 
             {failed.map((row) => (
               <li key={row.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-destructive/30 p-3">
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold">{formatWallKey(row.occurrenceKey)}</p>
+                  <p className="text-sm font-semibold">
+                    {formatWallKey(row.occurrenceKey)} · {channelLabels[row.channel]}
+                  </p>
                   {row.lastError ? <p className="text-sm text-destructive break-words">{row.lastError}</p> : null}
                 </div>
                 <RetryButton id={row.id} />

@@ -1,6 +1,7 @@
+import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
 import { NextRequest } from "next/server";
 import { describe, expect, it } from "vitest";
-import { proxy } from "@/proxy";
+import { config, proxy } from "@/proxy";
 
 const request = (path: string, cookie?: string) =>
   new NextRequest(`http://localhost:3000${path}`, { headers: cookie ? { cookie } : {} });
@@ -20,5 +21,13 @@ describe("proxy", () => {
 
   it("meneruskan pengunjung yang punya cookie sesi", () => {
     expect(proxy(request("/", "better-auth.session_token=abc")).headers.get("location")).toBeNull();
+  });
+
+  it("tidak menghalangi berkas PWA tanpa sesi: service worker, manifest, dan ikon (D-037)", () => {
+    for (const path of ["/sw.js", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png", "/icon-maskable-512.png", "/apple-touch-icon.png"]) {
+      expect(unstable_doesMiddlewareMatch({ config, url: path }), path).toBe(false);
+    }
+    // Pages are still guarded.
+    expect(unstable_doesMiddlewareMatch({ config, url: "/pengaturan" })).toBe(true);
   });
 });

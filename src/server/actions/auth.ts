@@ -2,12 +2,16 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { toAuthErrorMessage } from "@/lib/auth-errors";
 import { deleteAccountSchema, signInSchema, signUpSchema } from "@/lib/validation/auth";
-import { requireUser } from "@/server/dal/session";
+import { pushEndpointSchema } from "@/lib/validation/push";
+import { deletePushSubscription } from "@/server/dal/push-subscriptions";
+import { getSession, requireUser } from "@/server/dal/session";
 import { checkLimit, clientIp, emailKey, firstLimitError, limits } from "@/server/rate-limit";
+import { refreshReminders } from "@/server/reminder-jobs";
 
 export type AuthFormState = {
   error?: string;
@@ -58,7 +62,17 @@ export async function signUpAction(_prev: AuthFormState, formData: FormData): Pr
   redirect("/");
 }
 
-export async function signOutAction() {
+/**
+ * Signs out. The form sends this device's push endpoint (when push is on here), so the device stops getting this
+ * user's reminders on a shared browser (D-037). Without it, or with an expired session, signing out still works.
+ */
+export async function signOutAction(formData: FormData) {
+  const session = await getSession();
+  const endpoint = pushEndpointSchema.safeParse(formData.get("pushEndpoint"));
+  if (session && endpoint.success && (await deletePushSubscription(session.user.id, endpoint.data))) {
+    const userId = session.user.id;
+    after(() => refreshReminders(userId));
+  }
   await auth.api.signOut({ headers: await headers() });
   redirect("/masuk");
 }

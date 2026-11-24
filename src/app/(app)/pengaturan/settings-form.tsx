@@ -12,7 +12,7 @@ const selectClass =
   "h-11 w-full rounded-lg border border-input bg-card px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 aria-invalid:border-destructive md:text-sm";
 
 // A native checkbox drawn as the Figma toggle; the whole row is its label, so the tap target is the row.
-const switchClass =
+export const switchClass =
   "relative h-6 w-11 shrink-0 cursor-pointer appearance-none rounded-full bg-muted-foreground outline-none transition-colors checked:bg-foreground focus-visible:ring-3 focus-visible:ring-ring/50 before:absolute before:top-0.5 before:left-0.5 before:size-5 before:rounded-full before:bg-card before:transition-transform checked:before:translate-x-5 motion-reduce:transition-none motion-reduce:before:transition-none";
 
 function FieldError({ id, errors }: { id: string; errors?: string[] }) {

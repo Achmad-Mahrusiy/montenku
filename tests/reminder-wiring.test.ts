@@ -68,6 +68,10 @@ describe("route cron /api/cron/reconcile", () => {
   });
 
   it("dengan CRON_SECRET yang benar menjalankan reconcile() dan mengembalikan ringkasannya", async () => {
+    // This runs a reconcile over the whole shared test database on the real clock, with the real senders. Rows other
+    // test files left behind can be due by then; no network: Resend calls fail here, push has no VAPID keys.
+    vi.stubGlobal("fetch", vi.fn(async () => Promise.reject(new Error("Jaringan dimatikan di test"))));
+    vi.spyOn(console, "error").mockImplementation(() => {});
     const response = await call("Bearer test-cron-secret-0123456789");
     expect(response.status).toBe(200);
     expect(Object.keys(await response.json()).sort()).toEqual(["cancelled", "delivered", "enqueued", "errors", "recovered", "upserted"]);
