@@ -52,5 +52,19 @@
         "tailwindcss": "^4.3.5",
         "typescript": "^6.0.3",
         "vitest": "^5.1.1"
+    },
+    "overrides": {
+        "@vercel/queue": {
+            "minimatch": "11.0.9"
+        },
+        "@ts-morph/common": {
+            "minimatch": "11.0.9"
+        },
+        "@esbuild-kit/core-utils": {
+            "esbuild": "0.25.12"
+        },
+        "@vercel/cli-config": {
+            "zod": "4.6.7"
+        }
     }
 }

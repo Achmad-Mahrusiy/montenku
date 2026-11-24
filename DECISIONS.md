@@ -684,3 +684,17 @@ Status: Usulan
 - Folder data Postgres sisa penghentian paksa (sekitar 40 MB per folder) dihapus otomatis saat test berikutnya mulai, baik di Vitest maupun E2E.
 
 **Belum terverifikasi.** Kedua workflow baru berjalan setelah push pertama ke GitHub. E2E dan semua langkah CI sudah dijalankan di laptop.
+
+---
+
+## D-039 Celah keamanan di dependensi: `overrides`, bukan `npm audit fix --force`
+Status: Usulan
+
+**Konteks.** 24 Nov 2026: `npm install` melaporkan 12 celah (9 moderate, 3 high). Semuanya ada di salinan paket **di dalam** dependensi lain, tidak ada yang di kode Montenku atau dependensi langsungnya. Saran `npm audit fix --force` justru akan menurunkan `drizzle-kit`, `@vercel/queue`, dan `shadcn` ke versi yang sangat lama (perubahan besar).
+
+**Pilihan.** `overrides` di `package.json` memaksa salinan bersarang ke versi yang sudah ditambal, memakai versi yang memang sudah ada di proyek:
+- `zod` 4.1.11 → 4.6.7 di dalam `@vercel/cli-config` (dipakai `@vercel/oidc`, bagian dari Vercel Queues). Celah high: memori habis saat memvalidasi koleksi yang sangat besar. Major tetap v4, sama dengan zod milik Montenku.
+- `minimatch` 10.2.6 → 11.0.9 di dalam `@vercel/queue` dan `@ts-morph/common` (dipakai CLI `shadcn`). Celah moderate: DoS lewat pola glob.
+- `esbuild` 0.18.20 → 0.25.12 di dalam `@esbuild-kit/core-utils` (dipakai `drizzle-kit` untuk membaca `drizzle.config.ts`). Celah moderate di server dev esbuild, yang sebenarnya tidak dipakai drizzle-kit.
+
+**Alasan.** Hasilnya `npm audit` melaporkan 0 celah tanpa menurunkan versi apa pun. Dicek setelahnya: `drizzle-kit generate` tetap berjalan ("No schema changes"), typecheck, lint, 179 test, build, dan E2E lulus, dan biner Linux esbuild 0.25.12 ada di lockfile untuk CI. Hapus satu entri `overrides` begitu paket induknya sendiri sudah memakai versi yang ditambal.
