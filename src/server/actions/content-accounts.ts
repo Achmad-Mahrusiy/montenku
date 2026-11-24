@@ -36,7 +36,7 @@ function typed(formData: FormData) {
   return values;
 }
 
-// The sidebar in the app layout lists accounts too, so refresh the layout, not just this page.
+// Other pages list accounts too (dashboard, calendar filter, schedules), so refresh them all, not just this page.
 // Called outside try/catch: redirect() works by throwing.
 function done(): never {
   revalidatePath("/", "layout");

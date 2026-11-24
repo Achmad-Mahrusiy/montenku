@@ -12,7 +12,8 @@ Status: **gambaran statis untuk persetujuan**. Belum ada prototipe klik; perilak
 
 | Section | Isi |
 |---|---|
-| Fondasi: komponen | Button, NavItem, AccountTag, EventChip, ReminderBadge, StatusTrack, Field, BottomNav |
+| Fondasi: komponen | Button, NavItem, AccountTag, EventChip, ReminderBadge, StatusTrack, Field, BottomNav (lama) |
+| Prototype v2: navbar atas | TopNav, MobileAppBar, Masuk, Daftar, semua layar desktop dan HP dengan navbar atas, layar menu HP, prototype klik dari Masuk/Daftar sampai Keluar. Ini desain yang berlaku sekarang (D-040) |
 | Desktop (1440) | Dashboard Hari ini, Kalender Bulan, Kalender Minggu, Detail item, Jadwal berulang, Akun konten, Pengaturan |
 | Mobile (375) | Dashboard, Kalender Daftar, Detail item, Jadwal berulang (daftar + editor), Akun konten, Pengaturan |
 | State | Kosong, memuat, error |
@@ -31,11 +32,11 @@ Variabel: koleksi `Montenku/Warna` (mode Light/Dark) dan `Montenku/Ukuran` (spas
 - **Plus Jakarta Sans untuk UI:** dibuat untuk identitas kota Jakarta, cocok untuk produk berbahasa Indonesia, dan tetap jelas di 13–16px.
 - **Tanpa bayangan, border 1px:** hierarki dibangun dari latar dan border; bayangan hanya akan membuat semuanya "melayang".
 - **Radius 8–12px, tidak ada bentuk pill:** cukup ramah tanpa terlihat seperti template.
-- **Navigasi samping hanya teks (tanpa ikon):** label lima tujuan sudah jelas; ikon generik tidak menambah informasi.
+- **Navigasi hanya teks (tanpa ikon):** label lima tujuan sudah jelas; ikon generik tidak menambah informasi.
 - **Slot jadwal berulang digambar garis putus-putus:** memperlihatkan model data Fase 0 (kemunculan virtual vs item nyata) langsung di UI.
 - **Bentrok = border kuning tua + label teks "Bentrok":** peringatan, bukan error, jadi tidak memakai merah.
 - **Mobile memakai tampilan Daftar sebagai kalender utama:** grid bulan terlalu padat di lebar 375px; Bulan/Minggu tetap tersedia lewat tab.
-- **Bottom nav 5 tujuan berlabel teks, tinggi 44px:** sesuai batas maksimal 5 tujuan dan target sentuh minimum.
+- **Navbar di atas untuk semua ukuran layar (D-040):** di layar lebar lima menu sejajar; di HP tombol ☰ membuka daftar menu. Menggantikan sidebar dan bottom nav dari versi pertama.
 - **Dark mode lewat mode variabel, bukan warna terpisah:** satu sumber token. Ini masih usulan; toggle hanya dibangun kalau kamu setuju.
 - **Tombol di peringatan gagal kirim = "Lihat konten", bukan "kirim ulang":** brief belum menyebut kirim ulang manual, jadi tidak ditambahkan tanpa persetujuan.
 

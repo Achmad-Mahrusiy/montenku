@@ -79,7 +79,7 @@ export function ItemForm({ itemId, initial, accounts, deadlines, heading, extraA
         {saveButton}
       </div>
     </div>
-    {/* Side column only from xl: at lg (1024px) the sidebar leaves too little room for two columns. */}
+    {/* Side column only from xl: at lg (1024px) the form is too narrow next to a 400px column. */}
     <div className={cn("mt-6 grid gap-6 xl:items-start", aside && "xl:grid-cols-[minmax(0,1fr)_400px]")}>
     {/* key: remount when the shown values change. React's reset after an action puts a <select> back to the option
         it first rendered (later defaultValue changes are ignored), so a moved item showed its old account. */}

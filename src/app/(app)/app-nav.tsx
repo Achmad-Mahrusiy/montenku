@@ -4,14 +4,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
-// `short`: label in the phone bottom bar.
 // `also`: other paths that belong to this section (an item page is reached from the calendar, as in Figma).
 const items = [
-  { href: "/", label: "Dashboard", short: "Dashboard", also: [] },
-  { href: "/kalender", label: "Kalender", short: "Kalender", also: ["/konten"] },
-  { href: "/jadwal", label: "Jadwal berulang", short: "Jadwal", also: [] },
-  { href: "/akun-konten", label: "Akun konten", short: "Akun", also: [] },
-  { href: "/pengaturan", label: "Pengaturan", short: "Pengaturan", also: [] },
+  { href: "/", label: "Dashboard", also: [] },
+  { href: "/kalender", label: "Kalender", also: ["/konten"] },
+  { href: "/jadwal", label: "Jadwal berulang", also: [] },
+  { href: "/akun-konten", label: "Akun konten", also: [] },
+  { href: "/pengaturan", label: "Pengaturan", also: [] },
 ] as const;
 
 const isActive = (pathname: string, item: (typeof items)[number]) =>
@@ -19,13 +18,12 @@ const isActive = (pathname: string, item: (typeof items)[number]) =>
     ? pathname === "/"
     : [item.href, ...item.also].some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
-export function AppNav({ variant }: { variant: "sidebar" | "bottom" }) {
+// "top": one row in the navbar on wide screens. "menu": a stacked list in the phone menu.
+export function AppNav({ variant }: { variant: "top" | "menu" }) {
   const pathname = usePathname();
 
   return (
-    // Bottom bar: columns sized to their labels at 13px (as in Figma), so all five fit at 360px and up;
-    // narrower phones scroll the bar sideways instead of cutting "Pengaturan" off.
-    <ul className={variant === "sidebar" ? "grid gap-1" : "grid grid-flow-col justify-between gap-0.5 overflow-x-auto"}>
+    <ul className={variant === "top" ? "flex items-center gap-1" : "grid gap-1"}>
       {items.map((item) => {
         const active = isActive(pathname, item);
         return (
@@ -34,13 +32,12 @@ export function AppNav({ variant }: { variant: "sidebar" | "bottom" }) {
               href={item.href}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "flex h-11 items-center rounded-lg px-3 text-sm font-semibold outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
-                variant === "bottom" && "justify-center px-1.5 text-[13px] whitespace-nowrap",
+                "flex h-11 items-center rounded-lg px-3 text-sm font-semibold whitespace-nowrap outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
                 // The turmeric "stabilo" marks where you are, as in the Figma navigation.
                 active ? "bg-marker text-marker-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
             >
-              {variant === "bottom" ? item.short : item.label}
+              {item.label}
             </Link>
           </li>
         );

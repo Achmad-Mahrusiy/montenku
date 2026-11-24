@@ -698,3 +698,16 @@ Status: Usulan
 - `esbuild` 0.18.20 → 0.25.12 di dalam `@esbuild-kit/core-utils` (dipakai `drizzle-kit` untuk membaca `drizzle.config.ts`). Celah moderate di server dev esbuild, yang sebenarnya tidak dipakai drizzle-kit.
 
 **Alasan.** Hasilnya `npm audit` melaporkan 0 celah tanpa menurunkan versi apa pun. Dicek setelahnya: `drizzle-kit generate` tetap berjalan ("No schema changes"), typecheck, lint, 179 test, build, dan E2E lulus, dan biner Linux esbuild 0.25.12 ada di lockfile untuk CI. Hapus satu entri `overrides` begitu paket induknya sendiri sudah memakai versi yang ditambal.
+
+## D-040 Navbar di atas untuk semua ukuran layar
+Status: Disetujui (prototype Figma "Prototype v2: navbar atas", 25 Nov 2026)
+
+**Konteks.** Versi pertama memakai sidebar kiri di layar ≥1024px dan bar bawah di layar lebih sempit. Di jendela laptop yang dikecilkan, navigasi tiba-tiba pindah ke bawah. Pemilik produk meminta navbar di atas.
+
+**Pilihan.** Satu header di atas untuk semua layar, menempel saat halaman digulir (`sticky`):
+- **Layar ≥1024px:** logo, lima menu sejajar (yang aktif ditandai stabilo kuning), dan Keluar di kanan.
+- **Layar lebih sempit:** logo dan tombol ☰. Tombol ini membuka daftar menu dan Keluar tepat di bawah header. Menu tertutup lagi saat sebuah halaman dipilih, tombol ✕ ditekan, atau Esc ditekan.
+
+Daftar akun konten berwarna yang dulu ada di sidebar dihapus. Akun tetap terlihat di halaman Akun konten, di filter kalender, dan di setiap konten.
+
+**Alasan.** Satu pola navigasi di semua ukuran, jadi tidak ada lompatan dari kiri ke bawah. Header yang menempel membuat menu tetap terjangkau setelah menggulir, seperti bar bawah sebelumnya. Lima label tidak muat sejajar di lebar 375px, jadi HP memakai tombol menu, bukan label yang dipotong atau bar yang digeser.

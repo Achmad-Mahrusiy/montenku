@@ -11,7 +11,7 @@ export type ContentAccount = typeof contentAccounts.$inferSelect;
 
 const ownedBy = (userId: string, id: string) => and(eq(contentAccounts.id, id), eq(contentAccounts.userId, userId));
 
-// cache: the app layout (sidebar) and the page both need this list in the same request; query once.
+// cache: several parts of one request can need this list; query once.
 export const listContentAccounts = cache(async (userId: string): Promise<ContentAccount[]> =>
   db
     .select()
