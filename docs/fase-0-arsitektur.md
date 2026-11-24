@@ -1,6 +1,6 @@
 # Montenku (Monitor Kontenku): Fase 0, Arsitektur
 
-Status: **draf, menunggu persetujuan**. Belum ada kode. Keputusan teknis dan alasannya ada di [DECISIONS.md](../DECISIONS.md); dokumen ini menjelaskan bentuk sistemnya.
+Status: **disetujui 22 Nov 2026** sebagai rancangan awal. Beberapa detail berubah saat dibangun (misalnya pengingat per kanal email dan push, D-036); bentuk sistem yang sekarang ada di [README](../README.md), dan setiap perubahan dicatat di [DECISIONS.md](../DECISIONS.md).
 
 ## 1. Gambaran besar
 
