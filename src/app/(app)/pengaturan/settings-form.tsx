@@ -34,7 +34,7 @@ export function SettingsForm({ initial, email, otherTimezones }: Props) {
     // key: remount when the shown values change. React's reset after an action puts a <select> back to the option
     // it first rendered (it ignores later defaultValue changes), which would show the old timezone after saving.
     <form key={JSON.stringify(values)} action={formAction} noValidate className="grid gap-6">
-      <section aria-labelledby="email-title" className="rounded-xl border bg-card p-5 sm:p-6">
+      <section data-reveal aria-labelledby="email-title" className="rounded-xl border bg-card p-5 sm:p-6">
         <h2 id="email-title" className="font-heading text-xl font-bold">
           Email pengingat
         </h2>
@@ -47,7 +47,7 @@ export function SettingsForm({ initial, email, otherTimezones }: Props) {
         </label>
       </section>
 
-      <section aria-labelledby="quiet-title" className="grid gap-4 rounded-xl border bg-card p-5 sm:p-6">
+      <section data-reveal aria-labelledby="quiet-title" className="grid gap-4 rounded-xl border bg-card p-5 sm:p-6">
         <label htmlFor="quietEnabled" className="flex min-h-11 cursor-pointer items-center justify-between gap-4">
           <span className="min-w-0">
             <span id="quiet-title" className="block font-heading text-xl font-bold">

@@ -175,7 +175,7 @@ function NewNote({ itemId }: { itemId: string }) {
 
 export function NotesPanel({ itemId, notes }: { itemId: string; notes: NoteView[] }) {
   return (
-    <section aria-labelledby="notes-title" className="grid gap-4 rounded-xl border bg-card p-5 sm:p-6">
+    <section data-reveal aria-labelledby="notes-title" className="grid gap-4 rounded-xl border bg-card p-5 sm:p-6">
       <h2 id="notes-title" className="font-heading text-xl font-bold">
         Catatan
       </h2>

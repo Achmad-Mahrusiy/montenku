@@ -96,7 +96,7 @@ export function ItemForm({ itemId, initial, accounts, deadlines, heading, extraA
         </p>
       ) : null}
 
-      <section aria-labelledby="info-title" className="@container grid gap-5 rounded-xl border bg-card p-5 sm:p-6">
+      <section data-reveal aria-labelledby="info-title" className="@container grid gap-5 rounded-xl border bg-card p-5 sm:p-6">
         <h2 id="info-title" className="font-heading text-xl font-bold">
           Info konten
         </h2>
@@ -184,7 +184,7 @@ export function ItemForm({ itemId, initial, accounts, deadlines, heading, extraA
         </div>
       </section>
 
-      <section aria-labelledby="status-title" className="grid gap-5 rounded-xl border bg-card p-5 sm:p-6">
+      <section data-reveal aria-labelledby="status-title" className="grid gap-5 rounded-xl border bg-card p-5 sm:p-6">
         <div>
           <h2 id="status-title" className="font-heading text-xl font-bold">
             Status produksi

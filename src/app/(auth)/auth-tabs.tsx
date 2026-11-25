@@ -16,7 +16,7 @@ export function AuthTabs({ active }: { active: (typeof tabs)[number]["href"] }) 
           href={tab.href}
           aria-current={tab.href === active ? "page" : undefined}
           className={cn(
-            "flex h-11 items-center justify-center rounded-md text-sm font-semibold outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+            "flex h-11 items-center justify-center rounded-md text-sm font-semibold outline-none transition-colors duration-200 focus-visible:ring-3 focus-visible:ring-ring/50",
             tab.href === active
               ? "bg-marker text-marker-foreground"
               : "text-muted-foreground hover:bg-muted hover:text-foreground",

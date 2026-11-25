@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import * as motion from "motion/react-client";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { env } from "@/lib/env";
+import { cardHover, cardIn } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import {
   accountColors,
@@ -23,10 +25,12 @@ export const metadata: Metadata = { title: "Akun konten | Montenku" };
 const formatDate = (date: Date, timeZone: string) =>
   new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeZone }).format(date);
 
-function AccountRow({ account, selected }: { account: ContentAccount; selected: boolean }) {
+function AccountRow({ account, selected, order }: { account: ContentAccount; selected: boolean; order: number }) {
   const archived = account.archivedAt !== null;
   return (
-    <li
+    <motion.li
+      {...cardIn(order)}
+      {...cardHover}
       className={cn(
         "flex flex-col gap-4 rounded-xl border bg-card p-4 sm:flex-row sm:items-center sm:p-5",
         selected && "border-foreground",
@@ -62,7 +66,7 @@ function AccountRow({ account, selected }: { account: ContentAccount; selected: 
           </Link>
         </Button>
       )}
-    </li>
+    </motion.li>
   );
 }
 
@@ -157,8 +161,8 @@ export default async function ContentAccountsPage({ searchParams }: { searchPara
           </section>
         ) : (
           <ul className="grid gap-3" aria-label="Daftar akun konten">
-            {accounts.map((account) => (
-              <AccountRow key={account.id} account={account} selected={account.id === editing?.id} />
+            {accounts.map((account, i) => (
+              <AccountRow key={account.id} account={account} selected={account.id === editing?.id} order={i} />
             ))}
           </ul>
         )}

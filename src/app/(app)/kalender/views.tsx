@@ -1,5 +1,7 @@
+import * as motion from "motion/react-client";
 import Link from "next/link";
 import type { CalendarEntry } from "@/lib/calendar";
+import { cardHover, cardIn } from "@/lib/motion";
 import { addDays } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
@@ -35,7 +37,9 @@ export function EntryChip({ entry, className }: { entry: CalendarEntry; classNam
       href={entry.href}
       style={entryStyle(entry)}
       className={cn(
-        "flex min-h-7 min-w-0 items-center gap-1.5 rounded-md px-2 py-1 text-xs outline-none hover:brightness-95 focus-visible:ring-3 focus-visible:ring-ring/50",
+        "flex min-h-7 min-w-0 items-center gap-x-1.5 rounded-md px-2 py-1 text-xs outline-none transition-[translate,filter] duration-150 hover:brightness-95 focus-visible:ring-3 focus-visible:ring-ring/50 motion-safe:hover:-translate-y-px",
+        // A zone label ("GMT+9") leaves no room for the title in a narrow cell: put the title on its own line.
+        entry.zoneLabel && "flex-wrap",
         entry.slotOf && "border border-dashed",
         entry.clash && "border-2",
         className,
@@ -46,7 +50,7 @@ export function EntryChip({ entry, className }: { entry: CalendarEntry; classNam
         {entry.time}
         {entry.zoneLabel ? ` ${entry.zoneLabel}` : null}
       </span>
-      <span className="truncate font-semibold">{entry.title}</span>
+      <span className={cn("truncate font-semibold", entry.zoneLabel && "basis-full")}>{entry.title}</span>
       <span className="sr-only">
         {entry.slotOf ? `, jadwal ${entry.slotOf}` : null}, {entry.accountName}
         {entry.clash ? ", bentrok dengan posting lain di jam yang sama" : null}
@@ -210,7 +214,7 @@ export function ListView({ dates, days, today }: { dates: string[]; days: Days; 
     <div className="grid gap-6">
       {withEntries.map((date) => (
         // scroll-mt: the anchor (#hari-...) from a month cell lands below the top edge, not glued to it.
-        <section key={date} id={`hari-${date}`} aria-labelledby={`judul-${date}`} className="scroll-mt-6">
+        <section key={date} data-reveal id={`hari-${date}`} aria-labelledby={`judul-${date}`} className="scroll-mt-6">
           <h2 id={`judul-${date}`} className="flex items-center gap-2 font-heading text-lg font-bold">
             {dayHeading.format(asUtc(date))}
             {date === today ? <span className="rounded-md bg-marker px-2 py-0.5 text-sm font-semibold text-marker-foreground">Hari ini</span> : null}
@@ -219,8 +223,8 @@ export function ListView({ dates, days, today }: { dates: string[]; days: Days; 
             ) : null}
           </h2>
           <ul className="mt-2 grid gap-2">
-            {(days.get(date) ?? []).map((entry) => (
-              <li key={entry.id}>
+            {(days.get(date) ?? []).map((entry, i) => (
+              <motion.li key={entry.id} {...cardIn(i)} {...cardHover}>
                 <Link
                   href={entry.href}
                   style={entry.clash ? { borderColor: "var(--warning)" } : entry.slotOf ? { borderColor: entry.color } : undefined}
@@ -244,7 +248,7 @@ export function ListView({ dates, days, today }: { dates: string[]; days: Days; 
                     {entry.clash ? <span className="block text-sm font-semibold text-warning">Bentrok: jam yang sama dengan posting lain</span> : null}
                   </span>
                 </Link>
-              </li>
+              </motion.li>
             ))}
           </ul>
         </section>

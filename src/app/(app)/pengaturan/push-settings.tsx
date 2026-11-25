@@ -97,7 +97,7 @@ export function PushSettings({ publicKey }: { publicKey: string | null }) {
   const canToggle = state === "on" || state === "off";
 
   return (
-    <section aria-labelledby="push-title" className="grid gap-3 rounded-xl border bg-card p-5 sm:p-6">
+    <section data-reveal aria-labelledby="push-title" className="grid gap-3 rounded-xl border bg-card p-5 sm:p-6">
       <label htmlFor="pushEnabled" className="flex min-h-11 cursor-pointer items-center justify-between gap-4">
         <span className="min-w-0">
           <span id="push-title" className="block font-heading text-xl font-bold">

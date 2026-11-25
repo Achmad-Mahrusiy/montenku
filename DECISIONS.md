@@ -711,3 +711,21 @@ Status: Disetujui (prototype Figma "Prototype v2: navbar atas", 25 Nov 2026)
 Daftar akun konten berwarna yang dulu ada di sidebar dihapus. Akun tetap terlihat di halaman Akun konten, di filter kalender, dan di setiap konten.
 
 **Alasan.** Satu pola navigasi di semua ukuran, jadi tidak ada lompatan dari kiri ke bawah. Header yang menempel membuat menu tetap terjangkau setelah menggulir, seperti bar bawah sebelumnya. Lima label tidak muat sejajar di lebar 375px, jadi HP memakai tombol menu, bukan label yang dipotong atau bar yang digeser.
+
+## D-041 Animasi (GSAP + ScrollTrigger, Motion, Lenis) dan kotak kalender untuk akun zona lain
+Status: Disetujui (25 Nov 2026)
+
+**Konteks.** Pemilik produk merasa website "kaku", lalu meminta GSAP + ScrollTrigger, Motion untuk animasi masuk dan hover kartu, serta Lenis untuk smooth scroll. Saat review semua halaman juga ditemukan satu bug: di kalender Bulan, kalender Minggu, dan strip "Minggu ini" di dashboard, konten dari akun di zona lain (`20:00 GMT+9`) hanya menyisakan 1–2 px untuk judulnya.
+
+**Pilihan.** Setiap library punya satu tugas:
+- **Lenis 1.3.27** (`src/app/motion-root.tsx`, dipasang di root layout): smooth scroll di seluruh website. Lenis digerakkan oleh ticker GSAP dan memanggil `ScrollTrigger.update` di setiap frame, jadi posisi scroll keduanya selalu sama. `anchors` membuat link `#hari-...` ikut meluncur halus. `allowNestedScroll` dan `data-lenis-prevent` membiarkan menu HP dan tabel lebar tetap bisa di-scroll sendiri.
+- **Motion 14.12.0**: kartu muncul naik 16 px berurutan (jeda 60 ms) dan terangkat 3 px saat disentuh kursor. Kartunya: posting dan peringatan di dashboard, daftar kalender, kartu jadwal, dan kartu akun konten. Preset ada di `src/lib/motion.ts`, dipakai lewat `motion/react-client` sehingga halaman tetap Server Component.
+- **GSAP 3.15.1 + ScrollTrigger** (`src/app/(app)/scroll-reveal.tsx`): blok bertanda `data-reveal` yang awalnya ada di bawah layar naik pelan saat digulir ke dalam layar, termasuk blok yang baru muncul belakangan (halaman yang dimuat bertahap atau panel yang dibuka), karena dipantau dengan MutationObserver. Blok-bloknya: strip "Minggu ini", hari di kalender Daftar, kemunculan jadwal, panel pengingat dan catatan, bagian form konten, dan Pengaturan. Blok yang sudah terlihat saat halaman dimuat tidak disembunyikan, jadi tidak ada yang berkedip. Animasinya hanya memakai `opacity`, bukan `visibility`, jadi pengguna keyboard tetap bisa Tab ke dalamnya.
+- **CSS** (`globals.css`): halaman memudar masuk lewat `template.tsx`. Blok Masuk/Daftar naik bergantian. Peringatan dan pemberitahuan muncul pelan, dan panel menu HP turun. Transisi warna pada menu dan tab, tombol yang mengecil saat ditekan, ikon ☰ yang berputar, dan kerangka "memuat" yang berdenyut juga dibuat dengan CSS.
+- **Kurangi gerakan:** jika perangkat meminta "kurangi gerakan", Lenis tidak dinyalakan, GSAP tidak berjalan (`matchMedia`), Motion hanya memudar tanpa bergerak (`reducedMotion="user"`), dan semua animasi CSS mati.
+- **Kotak kalender dengan label zona** dibuat dua baris: jam dan zona di atas, judul di bawah. Label zona tetap terlihat (D-022).
+
+**Alasan.**
+- Versi paket dikunci, dan setiap versi sudah dirilis minimal dua minggu sebelumnya. GSAP beserta plugin-pluginnya kini gratis.
+- Tambahan JavaScript kira-kira 60 KB gzip. Ini diterima demi rasa yang diminta, tapi hanya untuk halaman aplikasi, bukan API.
+- Animasi gerak hanya berjalan saat elemen muncul. Animasi halaman hanya memakai opacity, jadi elemen `fixed` tidak pernah bergeser.

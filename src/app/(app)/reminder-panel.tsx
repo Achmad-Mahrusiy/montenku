@@ -78,7 +78,7 @@ export function ReminderPanel({ target, settings, statuses, timeZone, targetAt, 
   const failed = forSchedule ? statuses.filter((r) => r.status === "failed") : [];
 
   return (
-    <section aria-labelledby="reminders-title" className="grid gap-4 rounded-xl border bg-card p-5 sm:p-6">
+    <section data-reveal aria-labelledby="reminders-title" className="grid gap-4 rounded-xl border bg-card p-5 sm:p-6">
       <div>
         <h2 id="reminders-title" className="font-heading text-xl font-bold">
           {forSchedule ? "Pengingat untuk tiap kemunculan" : "Pengingat"}

@@ -142,7 +142,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
               href={href({ view: v })}
               aria-current={v === view ? "page" : undefined}
               className={cn(
-                "flex h-11 items-center rounded-md px-4 text-sm font-semibold outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+                "flex h-11 items-center rounded-md px-4 text-sm font-semibold outline-none transition-colors duration-200 focus-visible:ring-3 focus-visible:ring-ring/50",
                 v === view ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
               )}
             >
@@ -165,7 +165,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
               href={href({ accountId: a.id })}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "flex h-11 items-center gap-2 rounded-lg border px-4 text-sm font-semibold outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+                "flex h-11 items-center gap-2 rounded-lg border px-4 text-sm font-semibold outline-none transition-colors duration-200 focus-visible:ring-3 focus-visible:ring-ring/50",
                 active ? "border-foreground bg-foreground text-background" : "bg-card hover:bg-muted",
               )}
             >

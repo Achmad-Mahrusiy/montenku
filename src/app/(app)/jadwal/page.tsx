@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+import * as motion from "motion/react-client";
 import Link from "next/link";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { cardHover, cardIn } from "@/lib/motion";
 import { occurrencesBetween, type Occurrence } from "@/lib/occurrences";
 import { timezoneShortName, todayIn } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -245,7 +247,7 @@ export default async function SchedulesPage({ searchParams }: { searchParams: Pr
             ) : null}
 
             {editing ? (
-              <section aria-labelledby="upcoming-title" className="rounded-xl border bg-card p-5 sm:p-6">
+              <section data-reveal aria-labelledby="upcoming-title" className="rounded-xl border bg-card p-5 sm:p-6">
                 <h2 id="upcoming-title" className="font-heading text-xl font-bold">
                   Kemunculan berikutnya
                 </h2>
@@ -273,15 +275,15 @@ export default async function SchedulesPage({ searchParams }: { searchParams: Pr
           </section>
         ) : (
           <ul className="grid content-start gap-3" aria-label="Daftar jadwal berulang">
-            {schedules.map((s) => {
+            {schedules.map((s, i) => {
               const next = upcoming(s, filled, false)[0];
               return (
-                <li key={s.id}>
+                <motion.li key={s.id} {...cardIn(i)} {...cardHover}>
                   <Link
                     href={`/jadwal?ubah=${s.id}`}
                     aria-current={s.id === editing?.id ? "page" : undefined}
                     className={cn(
-                      "block rounded-xl border bg-card p-4 outline-none hover:bg-muted/40 focus-visible:ring-3 focus-visible:ring-ring/50",
+                      "block rounded-xl border bg-card p-4 outline-none transition-colors hover:bg-muted/40 focus-visible:ring-3 focus-visible:ring-ring/50",
                       s.id === editing?.id && "border-2 border-foreground",
                     )}
                   >
@@ -299,7 +301,7 @@ export default async function SchedulesPage({ searchParams }: { searchParams: Pr
                       </span>
                     ) : null}
                   </Link>
-                </li>
+                </motion.li>
               );
             })}
           </ul>

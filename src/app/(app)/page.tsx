@@ -2,9 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { z } from "zod";
 import { StatusTrack } from "@/components/status-track";
+import * as motion from "motion/react-client";
 import { Button } from "@/components/ui/button";
 import { clashDate, describeClash, findClashes, placeOnCalendar, scheduleSlots, type CalendarEntry } from "@/lib/calendar";
 import { lateLabel, pickReminder, todoLists, UPCOMING_MS, type TodoRow } from "@/lib/dashboard";
+import { cardIn } from "@/lib/motion";
 import { addDays, instantToWallTime, startOfWeek, todayIn, utcRangeCovering } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { statusLabels } from "@/lib/validation/content-item";
@@ -72,12 +74,12 @@ const badgeStyles = {
   failed: ["bg-destructive-surface text-destructive", "Gagal kirim"],
 } as const;
 
-function PostingRow({ entry, item, reminder, timeZone }: { entry: CalendarEntry; item?: CalendarItem; reminder: ReminderSummary | null; timeZone: string }) {
+function PostingRow({ entry, item, reminder, timeZone, order }: { entry: CalendarEntry; item?: CalendarItem; reminder: ReminderSummary | null; timeZone: string; order: number }) {
   const badge = reminder && reminder.status !== "cancelled" ? badgeStyles[reminder.status] : null;
   const send = reminder ? wallLabel(reminder.sendAt, timeZone) : null;
   const sendText = send ? (send.date === entry.date ? send.time : `${send.day}, ${send.time}`) : "";
   return (
-    <li className="flex flex-wrap items-start gap-x-4 gap-y-2 py-4">
+    <motion.li {...cardIn(order + 3)} className="flex flex-wrap items-start gap-x-4 gap-y-2 py-4">
       <p className="w-16 shrink-0 font-heading text-xl font-bold tabular-nums">
         {entry.time}
         {entry.zoneLabel ? <span className="block font-sans text-xs font-normal text-muted-foreground">{entry.zoneLabel}</span> : null}
@@ -102,13 +104,13 @@ function PostingRow({ entry, item, reminder, timeZone }: { entry: CalendarEntry;
           </p>
         </div>
       ) : null}
-    </li>
+    </motion.li>
   );
 }
 
-function TodoList({ title, rows, empty, now, late }: { title: string; rows: TodoRow[]; empty: string; now: Date; late: boolean }) {
+function TodoList({ title, rows, empty, now, late, order }: { title: string; rows: TodoRow[]; empty: string; now: Date; late: boolean; order: number }) {
   return (
-    <section aria-labelledby={`todo-${late ? "late" : "soon"}`} className="rounded-xl border bg-card p-5">
+    <motion.section {...cardIn(order)} aria-labelledby={`todo-${late ? "late" : "soon"}`} className="rounded-xl border bg-card p-5">
       <h2 id={`todo-${late ? "late" : "soon"}`} className="font-heading text-xl font-bold">
         {title}
       </h2>
@@ -137,7 +139,7 @@ function TodoList({ title, rows, empty, now, late }: { title: string; rows: Todo
         </ul>
       )}
       {rows.length > MAX_TODO ? <p className="mt-3 text-sm text-muted-foreground">dan {rows.length - MAX_TODO} lainnya</p> : null}
-    </section>
+    </motion.section>
   );
 }
 
@@ -199,11 +201,11 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     { key: "minggu", label: "Minggu ini", href: "/?tampilan=minggu" },
   ] as const;
 
-  const row = (entry: CalendarEntry) => {
+  const row = (entry: CalendarEntry, order: number) => {
     const item = itemsById.get(entry.id);
     // Reminder times show on the account's wall clock, like the posting time next to them (D-022).
     const zone = item?.account.timezone ?? schedules.find((s) => s.id === slotParts(entry.id).scheduleId)?.account.timezone ?? timezone;
-    return <PostingRow key={entry.id} entry={entry} item={item} reminder={pickReminder(remindersOf(entry, item, summaries))} timeZone={zone} />;
+    return <PostingRow key={entry.id} entry={entry} item={item} reminder={pickReminder(remindersOf(entry, item, summaries))} timeZone={zone} order={order} />;
   };
 
   return (
@@ -228,7 +230,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
               href={t.href}
               aria-current={t.key === tab ? "page" : undefined}
               className={cn(
-                "flex h-11 items-center rounded-md px-4 text-sm font-semibold outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+                "flex h-11 items-center rounded-md px-4 text-sm font-semibold outline-none transition-colors duration-200 focus-visible:ring-3 focus-visible:ring-ring/50",
                 t.key === tab ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
               )}
             >
@@ -244,7 +246,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       {failed.length > 0 || clashes.length > 0 ? (
         <div className="mt-6 grid gap-3">
           {failed[0] ? (
-            <section className="flex flex-wrap items-center gap-3 rounded-xl bg-destructive-surface p-4">
+            <motion.section {...cardIn(1)} className="flex flex-wrap items-center gap-3 rounded-xl bg-destructive-surface p-4">
               <div className="min-w-0 flex-1 basis-64">
                 <h2 className="text-sm font-semibold text-destructive">{failed.length} pengingat gagal terkirim</h2>
                 <p className="text-sm break-words">
@@ -255,10 +257,10 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
               <Button asChild variant="outline">
                 <Link href={failed[0].href}>Lihat konten</Link>
               </Button>
-            </section>
+            </motion.section>
           ) : null}
           {clashes.slice(0, MAX_CLASH_ALERTS).map((c, i) => (
-            <section key={i} className="flex flex-wrap items-center gap-3 rounded-xl bg-warning-surface p-4">
+            <motion.section key={i} {...cardIn(1 + i)} className="flex flex-wrap items-center gap-3 rounded-xl bg-warning-surface p-4">
               <div className="min-w-0 flex-1 basis-64">
                 <h2 className="text-sm font-semibold text-warning">Bentrok jadwal di {c.accountName}</h2>
                 <p className="text-sm break-words">
@@ -269,7 +271,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                 {/* An item's time is edited on its page; a slot only through its schedule. */}
                 <Link href={(c.entries.find((e) => e.href.startsWith("/konten/")) ?? c.entries[0]!).href}>Atur ulang jam</Link>
               </Button>
-            </section>
+            </motion.section>
           ))}
           {clashes.length > MAX_CLASH_ALERTS ? (
             <p className="text-sm text-muted-foreground">
@@ -283,7 +285,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       ) : null}
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
-        <section aria-labelledby="postings-title" className="rounded-xl border bg-card p-5 sm:p-6">
+        <motion.section {...cardIn(2)} aria-labelledby="postings-title" className="rounded-xl border bg-card p-5 sm:p-6">
           <h2 id="postings-title" className="font-heading text-xl font-bold">
             Posting {period}
           </h2>
@@ -311,16 +313,16 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           ) : (
             <ul className="mt-2 divide-y border-t">{listed.map(row)}</ul>
           )}
-        </section>
+        </motion.section>
 
         <div className="grid gap-6">
-          <TodoList title="Terlambat" rows={late} empty="Tidak ada yang terlambat." now={now} late />
-          <TodoList title="Tenggat mendekat" rows={upcoming} empty="Tidak ada tenggat dalam 7 hari ke depan." now={now} late={false} />
+          <TodoList title="Terlambat" rows={late} empty="Tidak ada yang terlambat." now={now} late order={3} />
+          <TodoList title="Tenggat mendekat" rows={upcoming} empty="Tidak ada tenggat dalam 7 hari ke depan." now={now} late={false} order={4} />
         </div>
       </div>
 
       {tab === "hari-ini" ? (
-        <section aria-labelledby="week-title" className="mt-6 rounded-xl border bg-card p-5 sm:p-6">
+        <section data-reveal aria-labelledby="week-title" className="mt-6 rounded-xl border bg-card p-5 sm:p-6">
           <h2 id="week-title" className="flex flex-wrap items-baseline gap-x-3 font-heading text-xl font-bold">
             Minggu ini
             <span className="font-sans text-sm font-normal text-muted-foreground">

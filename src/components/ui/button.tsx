@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 
 // Hand-written in the shadcn/ui shape (the registry was unreachable); same API, Montenku tokens.
 const buttonVariants = cva(
-  "inline-flex shrink-0 items-center justify-center gap-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50",
+  "inline-flex shrink-0 items-center justify-center gap-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-[color,background-color,border-color,scale] duration-150 outline-none motion-safe:active:scale-[0.97] focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50",
   {
     variants: {
       variant: {
