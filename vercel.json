@@ -1,5 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "regions": ["sin1"],
   "functions": {
     "src/app/api/queues/reminders/route.ts": {
       "experimentalTriggers": [{ "type": "queue/v2beta", "topic": "reminders", "maxDeliveries": 6, "retryAfterSeconds": 60 }]

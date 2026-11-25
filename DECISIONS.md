@@ -729,3 +729,18 @@ Status: Disetujui (25 Nov 2026)
 - Versi paket dikunci, dan setiap versi sudah dirilis minimal dua minggu sebelumnya. GSAP beserta plugin-pluginnya kini gratis.
 - Tambahan JavaScript kira-kira 60 KB gzip. Ini diterima demi rasa yang diminta, tapi hanya untuk halaman aplikasi, bukan API.
 - Animasi gerak hanya berjalan saat elemen muncul. Animasi halaman hanya memakai opacity, jadi elemen `fixed` tidak pernah bergeser.
+
+## D-042 Deploy ke Vercel: region Singapura, konfigurasi dicek ulang
+Status: Disetujui (25 Nov 2026)
+
+**Konteks.** Sebelum deploy pertama, `vercel.json` dicocokkan dengan dokumentasi Vercel (dicek 25 Nov 2026):
+- **Schedules dengan target `path`** mengirim `Authorization: Bearer <CRON_SECRET>` di setiap request (vercel.com/docs/schedules/handle-runs), sama seperti Cron Jobs (vercel.com/docs/cron-jobs/manage-cron-jobs). Penyapu 15 menit dan cron harian sama-sama bisa memakai `/api/cron/reconcile` yang memeriksa `CRON_SECRET` (D-009).
+- **Queues** tersedia (Beta) di semua plan. Di Hobby, 1.000.000 operasi pertama gratis. `maxDeliveries` dan `retryAfterSeconds` memang kunci yang sah di `experimentalTriggers`.
+- Tanpa `regions`, fungsi Vercel berjalan di Amerika Serikat, sedangkan Supabase ada di `ap-southeast-1`. Setiap query akan menyeberang benua.
+
+**Pilihan.**
+- `"regions": ["sin1"]` (Singapura, satu region, boleh di Hobby).
+- `CRON_SECRET` dibuat acak 24 byte dan disimpan di `.env` laptop. Nilai yang sama diisi di Vercel.
+- Nilai `CRON_SECRET` ikut "dibekukan" saat build, jadi setelah mengubahnya harus redeploy.
+
+**Alasan.** Fungsi dan database berada di wilayah yang sama, sehingga query cepat. Konfigurasi lain tidak perlu diubah.
