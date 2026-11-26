@@ -744,3 +744,37 @@ Status: Disetujui (25 Nov 2026)
 - Nilai `CRON_SECRET` ikut "dibekukan" saat build, jadi setelah mengubahnya harus redeploy.
 
 **Alasan.** Fungsi dan database berada di wilayah yang sama, sehingga query cepat. Konfigurasi lain tidak perlu diubah.
+
+## D-043 Tampilan v3: gaya template "Modern, Clean SaaS Company" dengan palet Pale Gold, Silk, Paper, Charcoal
+Status: Disetujui (desain Figma "Montenku v3: gaya SaaS", 26 Nov 2026)
+
+**Konteks.** Pemilik produk meminta seluruh website, termasuk halaman sebelum masuk, ditata seperti template Figma Community "Modern, Clean SaaS Company". Warna kuning dan koral dicoba lalu ditolak. Palet akhirnya diambil dari gambar contoh pemilik produk: Pale Gold `#C0B283`, Silk `#DCD0C0`, Paper `#F4F4F4`, dan Charcoal `#373737`, supaya terlihat segar dan natural. Halaman Masuk/Daftar juga diminta tidak terlihat kosong.
+
+**Pilihan.**
+- **Huruf:**
+  - Radio Canada Big untuk UI dan judul. Semua `font-bold`/`font-semibold` jatuh ke ketebalan 500, karena template memakai Medium.
+  - Source Serif 4 untuk teks isi: semua `<p>` serif secara default.
+  - Geist Mono untuk tombol dan label kecil.
+  - Ketiganya dimuat lewat `next/font`. Source Serif Pro di Figma tidak ada di Google Fonts, jadi diganti penerusnya, Source Serif 4.
+- **Warna** (`globals.css`, sama dengan mode variabel "SaaS" di Figma):
+  - Latar gradasi Paper ke Silk muda (`#E6DCCD`); teks dan tombol Charcoal.
+  - Penanda (hari ini, pilihan aktif, tab) Silk. Kotak tanggal besar di dashboard dan bingkai hari ini Pale Gold.
+  - Bentrok `#EFE2BF` dengan teks `#7A5A14`.
+  - Teks abu-abu digelapkan menjadi `#57524A` supaya kontrasnya tetap ≥4,5:1 di atas Silk dan di bagian bawah gradasi.
+  - Warna akun konten dan merah untuk gagal tidak berubah, karena keduanya membawa arti.
+- **Bentuk:**
+  - Kartu putih tanpa garis tepi, sudut 16px.
+  - Tombol dan isian bersudut 5px. Tombol utama Charcoal dengan huruf mono dan kotak kecil di depan labelnya; kotak itu pseudo-element, jadi tidak ikut dibacakan.
+  - Kartu yang garisnya bermakna tetap bergaris: slot kosong (putus-putus), jadwal atau akun terpilih, bentrok, dan Hapus akun.
+- **Judul halaman** (`src/components/page-title.tsx`): dua baris, yaitu kalimat pembuka serif dan nama halaman sans. Hanya nama halaman yang menjadi `<h1>`.
+- **Navbar:**
+  - Tanpa bar sendiri; menu di kanan, halaman aktif digaris bawahi, dan "Keluar →" berupa teks.
+  - Tetap `sticky` dengan latar Paper 95%. `backdrop-blur` sengaja tidak dipakai, karena akan membuat panel menu HP (fixed) terjepit di dalam header.
+  - Menu HP memakai tautan besar 36px bergaris pemisah dan tombol Keluar selebar layar.
+- **Footer** (`src/components/site-footer.tsx`): pita Charcoal dengan tautan dan tulisan raksasa "Montenku" Pale Gold. Tulisannya dekorasi (`aria-hidden`), ukurannya mengikuti lebar layar dan dipotong, jadi HP tidak pernah menggulir ke samping.
+- **Beranda publik** (`src/app/beranda/page.tsx`):
+  - Pengunjung tanpa cookie sesi yang membuka `/` mendapat halaman ini lewat rewrite di `proxy.ts`. Alamatnya tetap `/`, dan pengguna yang masuk tetap melihat dashboard di alamat yang sama.
+  - Halaman lain tanpa sesi tetap diarahkan ke `/masuk`.
+- **Masuk/Daftar:** panel cerita Silk (`story-panel.tsx`) di kiri form berisi judul, contoh jadwal "Hari ini", dan tiga keunggulan. Di HP panel ini ada di bawah form, tanpa contoh jadwal. Contoh jadwal dan gambar dashboard di Beranda memakai data karangan dan disembunyikan dari pembaca layar.
+
+**Alasan.** Pemilik produk menyetujui desainnya di Figma lebih dulu. Hampir semua perubahan lewat token dan beberapa komponen bersama (tombol, isian, judul, footer, navbar), jadi halaman-halaman hanya berubah sedikit. Diperiksa: typecheck, lint, 180 unit test, build, E2E 2/2, dan screenshot setiap halaman di 1440px dan 375px tanpa geser ke samping.

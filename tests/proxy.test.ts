@@ -8,19 +8,27 @@ const request = (path: string, cookie?: string) =>
 
 describe("proxy", () => {
   it("mengarahkan pengunjung tanpa cookie sesi ke /masuk", () => {
-    const response = proxy(request("/"));
+    const response = proxy(request("/kalender"));
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe("http://localhost:3000/masuk");
   });
 
-  it("membiarkan halaman masuk dan daftar terbuka", () => {
-    for (const path of ["/masuk", "/daftar"]) {
+  it("menampilkan beranda di / untuk pengunjung tanpa cookie sesi, tanpa mengganti alamat (D-043)", () => {
+    const response = proxy(request("/"));
+    expect(response.headers.get("location")).toBeNull();
+    expect(response.headers.get("x-middleware-rewrite")).toBe("http://localhost:3000/beranda");
+  });
+
+  it("membiarkan halaman masuk, daftar, dan beranda terbuka", () => {
+    for (const path of ["/masuk", "/daftar", "/beranda"]) {
       expect(proxy(request(path)).headers.get("location")).toBeNull();
     }
   });
 
   it("meneruskan pengunjung yang punya cookie sesi", () => {
-    expect(proxy(request("/", "better-auth.session_token=abc")).headers.get("location")).toBeNull();
+    const response = proxy(request("/", "better-auth.session_token=abc"));
+    expect(response.headers.get("location")).toBeNull();
+    expect(response.headers.get("x-middleware-rewrite")).toBeNull();
   });
 
   it("tidak menghalangi berkas PWA tanpa sesi: service worker, manifest, dan ikon (D-037)", () => {

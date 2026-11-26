@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { z } from "zod";
+import { PageTitle } from "@/components/page-title";
 import { Button } from "@/components/ui/button";
 import { clashDate, describeClash, findClashes, placeOnCalendar, scheduleSlots } from "@/lib/calendar";
 import {
@@ -104,7 +105,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   if (accounts.length === 0) {
     return (
       <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:py-10">
-        <h1 className="font-heading text-3xl font-bold">Kalender</h1>
+        <PageTitle lead="Semua jadwalmu">Kalender</PageTitle>
         <section className="mt-6 rounded-xl border border-dashed bg-card p-6">
           <h2 className="font-heading text-lg font-bold">Belum ada akun konten</h2>
           <p className="mt-1 text-sm text-muted-foreground">Kalender menampilkan konten per akun. Tambahkan akun kontennya dulu.</p>
@@ -119,8 +120,8 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-12 lg:py-10">
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="mr-auto font-heading text-3xl font-bold">{title}</h1>
-        <nav aria-label="Pindah periode" className="flex gap-2">
+        <PageTitle lead="Kalender" className="mr-auto">{title}</PageTitle>
+        <nav aria-label="Pindah periode" className="flex flex-wrap gap-2">
           <Button asChild variant="outline">
             <Link href={href({ date: step.prev })}>
               {step.unit} lalu
@@ -135,15 +136,15 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
             </Link>
           </Button>
         </nav>
-        <nav aria-label="Tampilan kalender" className="flex gap-1 rounded-lg bg-muted p-1">
+        <nav aria-label="Tampilan kalender" className="flex gap-1.5">
           {views.map((v) => (
             <Link
               key={v}
               href={href({ view: v })}
               aria-current={v === view ? "page" : undefined}
               className={cn(
-                "flex h-11 items-center rounded-md px-4 text-sm font-semibold outline-none transition-colors duration-200 focus-visible:ring-3 focus-visible:ring-ring/50",
-                v === view ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+                "flex h-11 items-center rounded-[5px] px-4 font-mono text-[13px] outline-none transition-colors duration-200 focus-visible:ring-3 focus-visible:ring-ring/50",
+                v === view ? "bg-primary text-primary-foreground" : "bg-card text-foreground hover:bg-muted",
               )}
             >
               {viewLabels[v]}
@@ -165,7 +166,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
               href={href({ accountId: a.id })}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "flex h-11 items-center gap-2 rounded-lg border px-4 text-sm font-semibold outline-none transition-colors duration-200 focus-visible:ring-3 focus-visible:ring-ring/50",
+                "flex h-11 items-center gap-2 rounded-[5px] border px-4 text-sm font-semibold outline-none transition-colors duration-200 focus-visible:ring-3 focus-visible:ring-ring/50",
                 active ? "border-foreground bg-foreground text-background" : "bg-card hover:bg-muted",
               )}
             >

@@ -11,7 +11,7 @@ import { createNoteAction, deleteNoteAction, updateNoteAction, type NoteFormStat
 export type NoteView = { id: string; body: string; updatedLabel: string };
 
 const textareaClass =
-  "min-h-32 w-full rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30";
+  "min-h-32 w-full rounded-[5px] border border-input bg-card px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30";
 
 /** Textarea with a Tulis / Pratinjau switch, as in the Figma "Catatan" card. Controlled so the preview is live. */
 function NoteEditor({ id, label, value, onChange }: { id: string; label: string; value: string; onChange: (v: string) => void }) {
@@ -175,7 +175,7 @@ function NewNote({ itemId }: { itemId: string }) {
 
 export function NotesPanel({ itemId, notes }: { itemId: string; notes: NoteView[] }) {
   return (
-    <section data-reveal aria-labelledby="notes-title" className="grid gap-4 rounded-xl border bg-card p-5 sm:p-6">
+    <section data-reveal aria-labelledby="notes-title" className="grid gap-4 rounded-xl bg-card p-5 sm:p-6">
       <h2 id="notes-title" className="font-heading text-xl font-bold">
         Catatan
       </h2>

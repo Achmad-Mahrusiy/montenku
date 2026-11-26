@@ -13,6 +13,7 @@ import { accountOptions, savedDeadlines, valuesFromItem } from "../form-data";
 import { ItemForm } from "../item-form";
 import { ReminderPanel } from "../../reminder-panel";
 import { NotesPanel, type NoteView } from "./notes-panel";
+import { PageTitle } from "@/components/page-title";
 
 export const metadata: Metadata = { title: "Detail konten | Montenku" };
 
@@ -49,7 +50,7 @@ export default async function ItemPage({ params }: { params: Promise<{ id: strin
         <span aria-hidden="true" className="size-2.5 rounded-full" style={{ background: item.account.color }} />
         {item.account.name}
       </nav>
-      <h1 className="mt-1 font-heading text-3xl font-bold break-words">{item.title}</h1>
+      <PageTitle lead="Detail konten" className="mt-1">{item.title}</PageTitle>
     </>
   );
 

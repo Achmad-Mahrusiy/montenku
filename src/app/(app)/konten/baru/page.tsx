@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { PageTitle } from "@/components/page-title";
 import { Button } from "@/components/ui/button";
 import { requireUser } from "@/server/dal/session";
 import { accountOptions, emptyValues, savedDeadlines } from "../form-data";
@@ -13,7 +14,7 @@ export default async function NewItemPage({ searchParams }: { searchParams: Prom
   // From a calendar filtered to one account (?akun=<id>): start with that account picked, if it is one of yours.
   const { akun } = await searchParams;
   const preset = accounts.find((a) => a.id === akun) ?? accounts[0];
-  const heading = <h1 className="font-heading text-3xl font-bold">Buat konten baru</h1>;
+  const heading = <PageTitle lead="Rencana berikutnya">Buat konten baru</PageTitle>;
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:py-10">

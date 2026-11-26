@@ -18,7 +18,7 @@ export type ScheduleFormValues = {
 };
 
 const selectClass =
-  "h-11 w-full rounded-lg border border-input bg-card px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 aria-invalid:border-destructive md:text-sm";
+  "h-11 w-full rounded-[5px] border border-input bg-card px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 aria-invalid:border-destructive md:text-sm";
 
 function FieldError({ id, errors }: { id: string; errors?: string[] }) {
   return errors?.[0] ? (
@@ -88,10 +88,10 @@ export function ScheduleForm({ scheduleId, initial, accounts }: Props) {
             <label key={d.code} className="relative">
               <input type="checkbox" name="days" value={d.code} defaultChecked={values.days.includes(d.code)} className="peer sr-only" />
               <span className="sr-only">{d.long}</span>
-              {/* Picked days get the turmeric marker, as in the Figma editor. */}
+              {/* Picked days get the Silk marker, as in the Figma editor (D-043). */}
               <span
                 aria-hidden="true"
-                className="flex h-11 min-w-12 cursor-pointer items-center justify-center rounded-lg border bg-card px-3 text-sm font-semibold peer-checked:border-marker peer-checked:bg-marker peer-checked:text-marker-foreground peer-focus-visible:ring-3 peer-focus-visible:ring-ring/50 hover:bg-muted"
+                className="flex h-11 min-w-12 cursor-pointer items-center justify-center rounded-[5px] border bg-card px-3 text-sm font-semibold peer-checked:border-marker peer-checked:bg-marker peer-checked:text-marker-foreground peer-focus-visible:ring-3 peer-focus-visible:ring-ring/50 hover:bg-muted"
               >
                 {d.short}
               </span>

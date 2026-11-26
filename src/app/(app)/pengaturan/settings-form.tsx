@@ -9,7 +9,7 @@ import { deleteAccountAction, type DeleteAccountState } from "@/server/actions/a
 import { saveUserSettingsAction, type SettingsFormState, type SettingsFormValues } from "@/server/actions/user-settings";
 
 const selectClass =
-  "h-11 w-full rounded-lg border border-input bg-card px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 aria-invalid:border-destructive md:text-sm";
+  "h-11 w-full rounded-[5px] border border-input bg-card px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 aria-invalid:border-destructive md:text-sm";
 
 // A native checkbox drawn as the Figma toggle; the whole row is its label, so the tap target is the row.
 export const switchClass =
@@ -34,7 +34,7 @@ export function SettingsForm({ initial, email, otherTimezones }: Props) {
     // key: remount when the shown values change. React's reset after an action puts a <select> back to the option
     // it first rendered (it ignores later defaultValue changes), which would show the old timezone after saving.
     <form key={JSON.stringify(values)} action={formAction} noValidate className="grid gap-6">
-      <section data-reveal aria-labelledby="email-title" className="rounded-xl border bg-card p-5 sm:p-6">
+      <section data-reveal aria-labelledby="email-title" className="rounded-xl bg-card p-5 sm:p-6">
         <h2 id="email-title" className="font-heading text-xl font-bold">
           Email pengingat
         </h2>
@@ -47,7 +47,7 @@ export function SettingsForm({ initial, email, otherTimezones }: Props) {
         </label>
       </section>
 
-      <section data-reveal aria-labelledby="quiet-title" className="grid gap-4 rounded-xl border bg-card p-5 sm:p-6">
+      <section data-reveal aria-labelledby="quiet-title" className="grid gap-4 rounded-xl bg-card p-5 sm:p-6">
         <label htmlFor="quietEnabled" className="flex min-h-11 cursor-pointer items-center justify-between gap-4">
           <span className="min-w-0">
             <span id="quiet-title" className="block font-heading text-xl font-bold">

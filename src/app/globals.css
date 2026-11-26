@@ -4,10 +4,16 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Token names follow shadcn/ui; values come from the Figma variables (Montenku/Warna). */
+/* Token names follow shadcn/ui; values come from the Figma variables (Montenku/Warna, mode "SaaS", D-043). */
 @theme inline {
-    --font-sans: var(--font-jakarta);
-    --font-heading: var(--font-bricolage);
+    --font-sans: var(--font-radio);
+    --font-heading: var(--font-radio);
+    --font-serif: var(--font-serif-4);
+    --font-mono: var(--font-geist-mono);
+    /* The template sets headings in Medium, so the existing font-bold/font-semibold classes all land on 500. */
+    --font-weight-semibold: 500;
+    --font-weight-bold: 500;
+    --color-gold: var(--gold);
     --color-marker: var(--marker);
     --color-marker-foreground: var(--marker-foreground);
     --color-warning: var(--warning);
@@ -57,29 +63,33 @@
 
 :root {
     --radius: 0.75rem;
-    --background: #f5f1ea;
-    --foreground: #1c1a17;
+    /* Palette: Paper #f4f4f4, Silk #dcd0c0, Pale Gold #c0b283, Charcoal #373737. */
+    --background: #f4f4f4;
+    --page-bottom: #e6dccd;
+    --foreground: #373737;
     --card: #ffffff;
-    --card-foreground: #1c1a17;
+    --card-foreground: #373737;
     --popover: #ffffff;
-    --popover-foreground: #1c1a17;
-    --primary: #1c1a17;
+    --popover-foreground: #373737;
+    --primary: #373737;
     --primary-foreground: #ffffff;
     --secondary: #ffffff;
-    --secondary-foreground: #1c1a17;
-    --muted: #ece6dc;
-    --muted-foreground: #5e574d;
-    --accent: #ece6dc;
-    --accent-foreground: #1c1a17;
+    --secondary-foreground: #373737;
+    --muted: #ece7df;
+    /* Darker than Figma's #6e6a63 so it still reads at 4.5:1 on Silk and the bottom of the page gradient. */
+    --muted-foreground: #57524a;
+    --accent: #ece7df;
+    --accent-foreground: #373737;
     --destructive: #b42318;
-    --border: #ddd5c8;
-    --input: #ddd5c8;
-    --ring: #1c1a17;
-    --marker: #f2c230;
-    --marker-foreground: #1c1a17;
-    /* Status pairs from docs/desain-ui.md (contrast checked): warning = bentrok, success = terkirim. */
-    --warning: #8a5a00;
-    --warning-surface: #fff4d6;
+    --border: #e2dbd0;
+    --input: #d6cdbf;
+    --ring: #373737;
+    --gold: #c0b283;
+    --marker: #dcd0c0;
+    --marker-foreground: #373737;
+    /* Status pairs (contrast checked): warning = bentrok, success = terkirim. */
+    --warning: #7a5a14;
+    --warning-surface: #efe2bf;
     --success: #1f7a4d;
     --success-surface: #e6f4ec;
     --destructive-surface: #fdecea;
@@ -89,13 +99,13 @@
     --chart-4: #2e9e5b;
     --chart-5: #c77700;
     --sidebar: #ffffff;
-    --sidebar-foreground: #1c1a17;
-    --sidebar-primary: #f2c230;
-    --sidebar-primary-foreground: #1c1a17;
-    --sidebar-accent: #ece6dc;
-    --sidebar-accent-foreground: #1c1a17;
-    --sidebar-border: #ddd5c8;
-    --sidebar-ring: #1c1a17;
+    --sidebar-foreground: #373737;
+    --sidebar-primary: #c0b283;
+    --sidebar-primary-foreground: #373737;
+    --sidebar-accent: #ece7df;
+    --sidebar-accent-foreground: #373737;
+    --sidebar-border: #e2dbd0;
+    --sidebar-ring: #373737;
 }
 
 .dark {
@@ -139,8 +149,15 @@
         @apply border-border outline-ring/50;
     }
 
+    /* Paper at the top fading to a light Silk at the bottom, like the template's sky gradient. */
     body {
-        @apply bg-background text-foreground;
+        @apply min-h-dvh bg-background text-foreground;
+        background-image: linear-gradient(180deg, var(--background) 0%, var(--page-bottom) 100%);
+    }
+
+    /* Body copy is serif, as in the template; UI text (labels, buttons, chips, nav) stays sans. */
+    p {
+        @apply font-serif;
     }
 
     a[href],

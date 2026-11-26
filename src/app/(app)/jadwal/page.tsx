@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import * as motion from "motion/react-client";
 import Link from "next/link";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
+import { PageTitle } from "@/components/page-title";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cardHover, cardIn } from "@/lib/motion";
@@ -113,7 +114,7 @@ function OccurrenceRow({ scheduleId, row }: { scheduleId: string; row: Row }) {
                 </form>
                 {/* Native disclosure: opens the move form without any client JavaScript. */}
                 <details className="group">
-                  <summary className="flex h-11 cursor-pointer list-none items-center rounded-lg border bg-card px-4 text-sm font-semibold outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50">
+                  <summary className="flex h-11 cursor-pointer list-none items-center gap-2 rounded-[5px] border border-foreground bg-card px-4 font-mono text-[13px] font-medium before:size-1.5 before:bg-current before:content-[''] outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50">
                     Geser
                   </summary>
                   <form action={moveOccurrenceAction} className="mt-2 flex flex-wrap items-end gap-2">
@@ -176,7 +177,7 @@ export default async function SchedulesPage({ searchParams }: { searchParams: Pr
   if (accounts.length === 0 && schedules.length === 0) {
     return (
       <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:py-10">
-        <h1 className="font-heading text-3xl font-bold">Jadwal berulang</h1>
+        <PageTitle lead="Ritme posting">Jadwal berulang</PageTitle>
         <section className="mt-6 rounded-xl border border-dashed bg-card p-6">
           <h2 className="font-heading text-lg font-bold">Belum ada akun konten</h2>
           <p className="mt-1 text-sm text-muted-foreground">Setiap jadwal milik satu akun konten. Tambahkan akun kontennya dulu.</p>
@@ -190,8 +191,8 @@ export default async function SchedulesPage({ searchParams }: { searchParams: Pr
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-12 lg:py-10">
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="font-heading text-3xl font-bold">Jadwal berulang</h1>
+      <div className="flex items-end justify-between gap-4">
+        <PageTitle lead="Ritme posting">Jadwal berulang</PageTitle>
         {panel !== "baru" && accounts.length > 0 ? (
           <Button asChild>
             <Link href="/jadwal?baru=1">
@@ -205,7 +206,7 @@ export default async function SchedulesPage({ searchParams }: { searchParams: Pr
         {/* On phones the open panel comes first, as on the content accounts page. */}
         {panel ? (
           <div className="grid gap-6 lg:order-last">
-            <section aria-labelledby="panel-title" className="@container rounded-xl border bg-card p-5 sm:p-6">
+            <section aria-labelledby="panel-title" className="@container rounded-xl bg-card p-5 sm:p-6">
               {panel === "hilang" || !initial ? (
                 <>
                   <h2 id="panel-title" className="font-heading text-xl font-bold">
@@ -247,7 +248,7 @@ export default async function SchedulesPage({ searchParams }: { searchParams: Pr
             ) : null}
 
             {editing ? (
-              <section data-reveal aria-labelledby="upcoming-title" className="rounded-xl border bg-card p-5 sm:p-6">
+              <section data-reveal aria-labelledby="upcoming-title" className="rounded-xl bg-card p-5 sm:p-6">
                 <h2 id="upcoming-title" className="font-heading text-xl font-bold">
                   Kemunculan berikutnya
                 </h2>
@@ -283,8 +284,8 @@ export default async function SchedulesPage({ searchParams }: { searchParams: Pr
                     href={`/jadwal?ubah=${s.id}`}
                     aria-current={s.id === editing?.id ? "page" : undefined}
                     className={cn(
-                      "block rounded-xl border bg-card p-4 outline-none transition-colors hover:bg-muted/40 focus-visible:ring-3 focus-visible:ring-ring/50",
-                      s.id === editing?.id && "border-2 border-foreground",
+                      "block rounded-xl border-2 border-transparent bg-card p-4 outline-none transition-colors hover:bg-muted/40 focus-visible:ring-3 focus-visible:ring-ring/50",
+                      s.id === editing?.id && "border-foreground",
                     )}
                   >
                     <span className="flex items-center gap-2 text-sm">

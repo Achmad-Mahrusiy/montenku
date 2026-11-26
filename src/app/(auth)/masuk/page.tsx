@@ -16,12 +16,12 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
     <>
       <AuthTabs active="/masuk" />
       {deleted ? (
-        <p role="status" className="mb-6 rounded-lg border bg-card p-3 text-sm">
+        <p role="status" className="mb-6 rounded-[5px] bg-marker p-3 text-sm">
           Akunmu dan semua datanya sudah dihapus.
         </p>
       ) : null}
-      <h1 className="font-heading text-2xl font-bold">Masuk ke akunmu</h1>
-      <p className="mt-1 mb-6 text-muted-foreground">Lanjutkan jadwal kontenmu.</p>
+      <h1 className="font-heading text-[2rem] leading-tight font-medium tracking-tight">Masuk ke akunmu</h1>
+      <p className="mt-1 mb-6 text-lg text-muted-foreground">Lanjutkan jadwal kontenmu.</p>
       <SignInForm />
     </>
   );

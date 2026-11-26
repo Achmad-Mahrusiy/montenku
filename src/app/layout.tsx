@@ -1,11 +1,14 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
-import { Bricolage_Grotesque, Plus_Jakarta_Sans } from "next/font/google";
+import { Geist_Mono, Radio_Canada_Big, Source_Serif_4 } from "next/font/google";
 import "./globals.css";
 import { MotionRoot } from "./motion-root";
 
-const jakarta = Plus_Jakarta_Sans({ subsets: ["latin"], variable: "--font-jakarta" });
-const bricolage = Bricolage_Grotesque({ subsets: ["latin"], variable: "--font-bricolage" });
+// The v3 type from the "Modern, Clean SaaS Company" template (D-043): sans for UI and headings, serif for body copy,
+// mono for buttons and small labels.
+const sans = Radio_Canada_Big({ subsets: ["latin"], variable: "--font-radio" });
+const serif = Source_Serif_4({ subsets: ["latin"], variable: "--font-serif-4" });
+const mono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" });
 
 export const metadata: Metadata = {
     title: "Montenku",
@@ -15,11 +18,11 @@ export const metadata: Metadata = {
     icons: { icon: "/icon-192.png", apple: "/apple-touch-icon.png" },
 };
 
-export const viewport: Viewport = { themeColor: "#f5f1ea" };
+export const viewport: Viewport = { themeColor: "#f4f4f4" };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
     return (
-        <html lang="id" className={`${jakarta.variable} ${bricolage.variable}`}>
+        <html lang="id" className={`${sans.variable} ${serif.variable} ${mono.variable}`}>
             <body className="antialiased">
                 <MotionRoot>{children}</MotionRoot>
             </body>

@@ -28,9 +28,9 @@ type Props = {
 };
 
 const textareaClass =
-  "min-h-20 w-full rounded-lg border border-input bg-card px-3 py-2 text-base outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 aria-invalid:border-destructive md:text-sm";
+  "min-h-20 w-full rounded-[5px] border border-input bg-card px-3 py-2 text-base outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 aria-invalid:border-destructive md:text-sm";
 const selectClass =
-  "h-11 w-full rounded-lg border border-input bg-card px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 aria-invalid:border-destructive md:text-sm";
+  "h-11 w-full rounded-[5px] border border-input bg-card px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 aria-invalid:border-destructive md:text-sm";
 
 function FieldError({ id, errors }: { id: string; errors?: string[] }) {
   return errors?.[0] ? (
@@ -96,7 +96,7 @@ export function ItemForm({ itemId, initial, accounts, deadlines, heading, extraA
         </p>
       ) : null}
 
-      <section data-reveal aria-labelledby="info-title" className="@container grid gap-5 rounded-xl border bg-card p-5 sm:p-6">
+      <section data-reveal aria-labelledby="info-title" className="@container grid gap-5 rounded-xl bg-card p-5 sm:p-6">
         <h2 id="info-title" className="font-heading text-xl font-bold">
           Info konten
         </h2>
@@ -184,7 +184,7 @@ export function ItemForm({ itemId, initial, accounts, deadlines, heading, extraA
         </div>
       </section>
 
-      <section data-reveal aria-labelledby="status-title" className="grid gap-5 rounded-xl border bg-card p-5 sm:p-6">
+      <section data-reveal aria-labelledby="status-title" className="grid gap-5 rounded-xl bg-card p-5 sm:p-6">
         <div>
           <h2 id="status-title" className="font-heading text-xl font-bold">
             Status produksi
@@ -205,8 +205,8 @@ export function ItemForm({ itemId, initial, accounts, deadlines, heading, extraA
                   onChange={() => setStatus(s)}
                   className="peer sr-only"
                 />
-                {/* The active stage gets the turmeric marker, like the Figma "Editing" chip. */}
-                <span className="flex h-11 cursor-pointer items-center rounded-lg border bg-card px-3 text-sm font-semibold peer-checked:border-marker peer-checked:bg-marker peer-checked:text-marker-foreground peer-focus-visible:ring-3 peer-focus-visible:ring-ring/50 hover:bg-muted">
+                {/* The active stage gets the Silk marker, like the Figma "Editing" chip (D-043). */}
+                <span className="flex h-11 cursor-pointer items-center rounded-[5px] border bg-card px-3 text-sm font-semibold peer-checked:border-marker peer-checked:bg-marker peer-checked:text-marker-foreground peer-focus-visible:ring-3 peer-focus-visible:ring-ring/50 hover:bg-muted">
                   {statusLabels[s]}
                 </span>
               </label>

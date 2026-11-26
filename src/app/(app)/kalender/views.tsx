@@ -65,7 +65,7 @@ function TodayNumber({ date, today, className }: { date: string; today: string; 
     <span
       className={cn(
         "inline-flex h-6 min-w-6 items-center justify-center rounded-md px-1 text-sm font-semibold tabular-nums",
-        // The turmeric "stabilo" marks today, as in the Figma calendar.
+        // The Silk marker shows today, as in the Figma calendar (D-043).
         isToday && "bg-marker text-marker-foreground",
         className,
       )}
@@ -91,7 +91,7 @@ export function MonthView({
 }) {
   const MAX_CHIPS = 3;
   return (
-    <table className="w-full table-fixed border-separate border-spacing-0 overflow-hidden rounded-xl border bg-card">
+    <table className="w-full table-fixed border-separate border-spacing-0 overflow-hidden rounded-xl bg-card">
       <thead>
         <tr>
           {weeks[0]?.map((date) => (
@@ -168,7 +168,7 @@ export function WeekView({ monday, days, today, zoneLabel }: { monday: string; d
 
   return (
     // Seven columns do not fit a phone: this box scrolls sideways on purpose (the page itself never does).
-    <div tabIndex={0} aria-label="Kalender minggu ini, bisa digeser ke samping" className="relative overflow-x-auto rounded-xl border bg-card outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
+    <div tabIndex={0} aria-label="Kalender minggu ini, bisa digeser ke samping" className="relative overflow-x-auto rounded-xl bg-card outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
       <table className="w-full min-w-[760px] table-fixed border-separate border-spacing-0">
         <thead>
           <tr>

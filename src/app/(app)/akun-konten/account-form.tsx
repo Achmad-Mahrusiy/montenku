@@ -20,7 +20,7 @@ import {
 } from "@/server/actions/content-accounts";
 
 const selectClass =
-  "h-11 w-full rounded-lg border border-input bg-card px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 aria-invalid:border-destructive md:text-sm";
+  "h-11 w-full rounded-[5px] border border-input bg-card px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 aria-invalid:border-destructive md:text-sm";
 
 function FieldError({ id, errors }: { id: string; errors?: string[] }) {
   return errors?.[0] ? (

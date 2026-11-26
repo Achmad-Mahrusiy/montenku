@@ -13,7 +13,8 @@ Status: **gambaran statis untuk persetujuan**. Belum ada prototipe klik; perilak
 | Section | Isi |
 |---|---|
 | Fondasi: komponen | Button, NavItem, AccountTag, EventChip, ReminderBadge, StatusTrack, Field, BottomNav (lama) |
-| Prototype v2: navbar atas | TopNav, MobileAppBar, Masuk, Daftar, semua layar desktop dan HP dengan navbar atas, layar menu HP, prototype klik dari Masuk/Daftar sampai Keluar. Ini desain yang berlaku sekarang (D-040) |
+| Prototype v2: navbar atas | TopNav, MobileAppBar, Masuk, Daftar, semua layar desktop dan HP dengan navbar atas, layar menu HP, prototype klik dari Masuk/Daftar sampai Keluar (D-040). Tata letaknya masih berlaku, gayanya diganti v3 |
+| Halaman "Montenku v3: gaya SaaS" | Desain yang berlaku sekarang (D-043): Beranda publik, Masuk/Daftar dengan panel cerita, 15 layar app desktop dan HP, gaya template "Modern, Clean SaaS Company" dengan palet Pale Gold, Silk, Paper, Charcoal. Prototype klik dimulai dari Beranda |
 | Desktop (1440) | Dashboard Hari ini, Kalender Bulan, Kalender Minggu, Detail item, Jadwal berulang, Akun konten, Pengaturan |
 | Mobile (375) | Dashboard, Kalender Daftar, Detail item, Jadwal berulang (daftar + editor), Akun konten, Pengaturan |
 | State | Kosong, memuat, error |
@@ -22,6 +23,8 @@ Status: **gambaran statis untuk persetujuan**. Belum ada prototipe klik; perilak
 Belum ada frame: tampilan Daftar versi desktop, tab "Minggu ini" di dashboard, dan halaman masuk/daftar (Better Auth).
 
 Variabel: koleksi `Montenku/Warna` (mode Light/Dark) dan `Montenku/Ukuran` (spasi, radius). Nantinya keduanya dipetakan 1:1 ke CSS variable Tailwind/shadcn.
+
+> **Catatan v3 (D-043):** warna, huruf, dan stabilo kuning di daftar bawah ini adalah desain versi pertama. Sejak v3, latar memakai gradasi Paper ke Silk, teks Charcoal, penanda Silk dan Pale Gold, dengan huruf Radio Canada Big, Source Serif 4, dan Geist Mono. Alasan selengkapnya ada di DECISIONS.md D-043.
 
 ## Alasan tiap keputusan (satu baris)
 

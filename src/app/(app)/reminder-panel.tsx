@@ -11,7 +11,7 @@ import type { ReminderSetting, ReminderStatusRow, ReminderTarget } from "@/serve
 // Server-rendered: every button is a small form.
 
 const selectClass =
-  "h-11 min-w-0 flex-1 rounded-lg border border-input bg-card px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 md:text-sm";
+  "h-11 min-w-0 flex-1 rounded-[5px] border border-input bg-card px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 md:text-sm";
 
 const dayFormat = new Intl.DateTimeFormat("id-ID", { weekday: "long", day: "numeric", month: "short", timeZone: "UTC" });
 /** An instant shown in the account's zone: "Selasa, 24 Nov, 17:00 WIB". */
@@ -78,7 +78,7 @@ export function ReminderPanel({ target, settings, statuses, timeZone, targetAt, 
   const failed = forSchedule ? statuses.filter((r) => r.status === "failed") : [];
 
   return (
-    <section data-reveal aria-labelledby="reminders-title" className="grid gap-4 rounded-xl border bg-card p-5 sm:p-6">
+    <section data-reveal aria-labelledby="reminders-title" className="grid gap-4 rounded-xl bg-card p-5 sm:p-6">
       <div>
         <h2 id="reminders-title" className="font-heading text-xl font-bold">
           {forSchedule ? "Pengingat untuk tiap kemunculan" : "Pengingat"}

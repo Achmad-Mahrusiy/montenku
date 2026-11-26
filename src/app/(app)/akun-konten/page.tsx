@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import * as motion from "motion/react-client";
 import Link from "next/link";
+import { PageTitle } from "@/components/page-title";
 import { Button } from "@/components/ui/button";
 import { env } from "@/lib/env";
 import { cardHover, cardIn } from "@/lib/motion";
@@ -32,7 +33,7 @@ function AccountRow({ account, selected, order }: { account: ContentAccount; sel
       {...cardIn(order)}
       {...cardHover}
       className={cn(
-        "flex flex-col gap-4 rounded-xl border bg-card p-4 sm:flex-row sm:items-center sm:p-5",
+        "flex flex-col gap-4 rounded-xl border-2 border-transparent bg-card p-4 sm:flex-row sm:items-center sm:p-5",
         selected && "border-foreground",
       )}
     >
@@ -95,8 +96,8 @@ export default async function ContentAccountsPage({ searchParams }: { searchPara
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-12 lg:py-10">
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="font-heading text-3xl font-bold">Akun konten</h1>
+      <div className="flex items-end justify-between gap-4">
+        <PageTitle lead="Semua akunmu">Akun konten</PageTitle>
         {panel !== "tambah" ? (
           <Button asChild>
             <Link href="/akun-konten?tambah=1">
@@ -109,7 +110,7 @@ export default async function ContentAccountsPage({ searchParams }: { searchPara
       <div className={cn("mt-6 grid gap-6 lg:items-start", panel && "lg:grid-cols-[minmax(0,1fr)_400px]")}>
         {/* On phones the open panel comes first, so tapping "Ubah" does not leave the form below a long list. */}
         {panel ? (
-          <section aria-labelledby="panel-title" className="rounded-xl border bg-card p-5 sm:p-6 lg:order-last">
+          <section aria-labelledby="panel-title" className="rounded-xl bg-card p-5 sm:p-6 lg:order-last">
             {panel === "hilang" ? (
               <>
                 <h2 id="panel-title" className="font-heading text-xl font-bold">
