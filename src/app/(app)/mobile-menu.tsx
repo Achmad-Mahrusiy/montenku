@@ -4,7 +4,7 @@ import { useEffect, useState, type MouseEvent, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { AppNav } from "./app-nav";
 
-// Phone and narrow-window navigation: the ☰ button in the top bar opens the menu below it (Figma "Mobile / Menu terbuka").
+// Phone and narrow-window navigation: the ☰ button in the top bar slides a narrow panel in from the right (Figma "Mobile / Menu terbuka").
 export function MobileMenu({ signOut }: { signOut: ReactNode }) {
   const [open, setOpen] = useState(false);
 
@@ -36,8 +36,9 @@ export function MobileMenu({ signOut }: { signOut: ReactNode }) {
           <path d={open ? "M18 6 6 18M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} />
         </svg>
       </button>
-      {/* top-16: right under the 64px top bar. */}
-      <div id="mobile-menu" data-lenis-prevent hidden={!open} onClick={closeOnLink} className="motion-drop fixed inset-x-0 top-16 bottom-0 z-40 overflow-y-auto bg-card px-4 pb-6">
+      {/* top-16: right under the 64px top bar. Tapping the dimmed page beside the panel closes it. */}
+      <div hidden={!open} aria-hidden="true" onClick={() => setOpen(false)} className="motion-page fixed inset-x-0 top-16 bottom-0 z-40 bg-foreground/30" />
+      <div id="mobile-menu" data-lenis-prevent hidden={!open} onClick={closeOnLink} className="motion-slide fixed top-16 right-0 bottom-0 z-40 w-72 max-w-[85vw] overflow-y-auto border-l bg-card px-4 pb-6">
         <nav aria-label="Navigasi utama">
           <AppNav variant="menu" />
         </nav>

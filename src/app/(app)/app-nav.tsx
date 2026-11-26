@@ -19,7 +19,7 @@ const isActive = (pathname: string, item: (typeof appNavItems)[number]) =>
     : [item.href, ...item.also].some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
 // "top": plain text links in the navbar on wide screens, the current page underlined (template style, D-043).
-// "menu": the phone menu's big stacked links with a hairline between them, like the template's mobile navigation.
+// "menu": the phone side panel's stacked links with a hairline between them.
 export function AppNav({ variant }: { variant: "top" | "menu" }) {
   const pathname = usePathname();
 
@@ -34,7 +34,7 @@ export function AppNav({ variant }: { variant: "top" | "menu" }) {
               aria-current={active ? "page" : undefined}
               className={cn(
                 "flex items-center font-medium whitespace-nowrap underline-offset-[6px] outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
-                variant === "top" ? "h-11 rounded-md px-3 text-[15px] hover:underline" : "h-20 border-b text-4xl tracking-tight",
+                variant === "top" ? "h-11 rounded-md px-3 text-[15px] hover:underline" : "h-12 border-b text-lg",
                 active && "underline decoration-2",
               )}
             >

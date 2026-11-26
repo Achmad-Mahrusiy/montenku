@@ -25,7 +25,7 @@ export function SignOutButton({ variant }: { variant: "text" | "button" }) {
           Keluar <span aria-hidden="true">→</span>
         </Button>
       ) : (
-        <Button type="submit" className="h-13 w-full">
+        <Button type="submit" className="h-11 w-full">
           Keluar
         </Button>
       )}

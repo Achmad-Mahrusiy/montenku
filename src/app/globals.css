@@ -190,10 +190,9 @@
         transform: translateY(0.5rem);
     }
 }
-@keyframes drop {
+@keyframes slide-in {
     from {
-        opacity: 0;
-        transform: translateY(-0.5rem);
+        transform: translateX(100%);
     }
 }
 @media (prefers-reduced-motion: no-preference) {
@@ -223,8 +222,8 @@
     [role="status"]:not(.sr-only) {
         animation: rise 0.25s ease-out both;
     }
-    .motion-drop {
-        animation: drop 0.2s ease-out both;
+    .motion-slide {
+        animation: slide-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
     }
 }
 
