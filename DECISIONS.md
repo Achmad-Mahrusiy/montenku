@@ -771,10 +771,19 @@ Status: Disetujui (desain Figma "Montenku v3: gaya SaaS", 26 Nov 2026)
   - Tanpa bar sendiri; menu di kanan, halaman aktif digaris bawahi, dan "Keluar →" berupa teks.
   - Tetap `sticky` dengan latar Paper 95%. `backdrop-blur` sengaja tidak dipakai, karena akan membuat panel menu HP (fixed) terjepit di dalam header.
   - Menu HP memakai tautan besar 36px bergaris pemisah dan tombol Keluar selebar layar.
-- **Footer** (`src/components/site-footer.tsx`): pita Charcoal dengan tautan dan tulisan raksasa "Montenku" Pale Gold. Tulisannya dekorasi (`aria-hidden`), ukurannya mengikuti lebar layar dan dipotong, jadi HP tidak pernah menggulir ke samping.
+- **Footer** (`src/components/site-footer.tsx`): pita Charcoal di bawah setiap halaman (isinya diubah di D-044).
 - **Beranda publik** (`src/app/beranda/page.tsx`):
   - Pengunjung tanpa cookie sesi yang membuka `/` mendapat halaman ini lewat rewrite di `proxy.ts`. Alamatnya tetap `/`, dan pengguna yang masuk tetap melihat dashboard di alamat yang sama.
   - Halaman lain tanpa sesi tetap diarahkan ke `/masuk`.
 - **Masuk/Daftar:** panel cerita Silk (`story-panel.tsx`) di kiri form berisi judul, contoh jadwal "Hari ini", dan tiga keunggulan. Di HP panel ini ada di bawah form, tanpa contoh jadwal. Contoh jadwal dan gambar dashboard di Beranda memakai data karangan dan disembunyikan dari pembaca layar.
 
 **Alasan.** Pemilik produk menyetujui desainnya di Figma lebih dulu. Hampir semua perubahan lewat token dan beberapa komponen bersama (tombol, isian, judul, footer, navbar), jadi halaman-halaman hanya berubah sedikit. Diperiksa: typecheck, lint, 180 unit test, build, E2E 2/2, dan screenshot setiap halaman di 1440px dan 375px tanpa geser ke samping.
+
+## D-044 Footer hanya berisi nama pembuat
+Status: Disetujui (26 Nov 2026)
+
+**Konteks.** Di HP, deretan tautan di footer (Dashboard sampai Pengaturan, atau Cara pakai sampai Daftar di Beranda) menumpuk menjadi daftar panjang yang mengulang navbar. Pemilik produk ingin footer hanya menyebut pembuatnya dengan nama samaran "Troii".
+
+**Pilihan.** Footer di semua halaman dan semua ukuran layar hanya berisi `© <tahun> Montenku · Troii` di atas pita Charcoal. Tulisan besar "Montenku" dari template juga dihapus. Navigasi hanya ada di navbar atas dan menu ☰ di HP.
+
+**Alasan.** Satu tempat untuk navigasi, dan footer menjadi satu baris pendek di semua layar.

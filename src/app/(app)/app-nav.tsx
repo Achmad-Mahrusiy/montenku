@@ -3,7 +3,15 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { appNavItems } from "./nav-items";
+
+// `also`: other paths that belong to this section (an item page is reached from the calendar, as in Figma).
+const appNavItems = [
+  { href: "/", label: "Dashboard", also: [] },
+  { href: "/kalender", label: "Kalender", also: ["/konten"] },
+  { href: "/jadwal", label: "Jadwal berulang", also: [] },
+  { href: "/akun-konten", label: "Akun konten", also: [] },
+  { href: "/pengaturan", label: "Pengaturan", also: [] },
+] as const;
 
 const isActive = (pathname: string, item: (typeof appNavItems)[number]) =>
   item.href === "/"

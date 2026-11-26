@@ -44,13 +44,6 @@ const week = [
   ["Min", []],
 ] as const;
 
-const footerLinks = [
-  { href: "#cara-pakai", label: "Cara pakai" },
-  { href: "#fitur", label: "Fitur" },
-  { href: "/masuk", label: "Masuk" },
-  { href: "/daftar", label: "Daftar" },
-];
-
 const container = "mx-auto max-w-7xl px-4 sm:px-6 lg:px-12";
 
 function Icon({ name }: { name: (typeof values)[number][0] }) {
@@ -233,7 +226,7 @@ export default function LandingPage() {
         <ScrollReveal />
       </main>
 
-      <SiteFooter links={footerLinks} />
+      <SiteFooter />
     </>
   );
 }

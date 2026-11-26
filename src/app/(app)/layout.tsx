@@ -3,7 +3,6 @@ import type { ReactNode } from "react";
 import { SiteFooter } from "@/components/site-footer";
 import { requireUser } from "@/server/dal/session";
 import { AppNav } from "./app-nav";
-import { appNavItems } from "./nav-items";
 import { MobileMenu } from "./mobile-menu";
 import { SignOutButton } from "./sign-out-button";
 
@@ -32,7 +31,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
       </header>
 
       <div className="min-w-0 flex-1">{children}</div>
-      <SiteFooter links={appNavItems} />
+      <SiteFooter />
     </div>
   );
 }
